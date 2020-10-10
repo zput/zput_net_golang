@@ -10,6 +10,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const readEvent = unix.EPOLLIN | unix.EPOLLPRI
+const writeEvent = unix.EPOLLOUT
+const errEvent = unix.EPOLLERR
+
 const waitEventsNumber = 1024
 
 // Multiplex Epoll封装
@@ -18,6 +22,7 @@ type Multiplex struct {
 	wakeEventFd  int // 用户唤醒的作用file describe
 	running  atomic.Bool
 	waitDone chan struct{}
+	waitEvents []unix.EpollEvent
 }
 
 // 创建Poller对象
@@ -36,6 +41,7 @@ func New() (*Multiplex, error) {
 		fd:       fd,
 		wakeEventFd:  wakeEventFd,
 		waitDone: make(chan struct{}),
+		waitEvents : make([]unix.EpollEvent, waitEventsNumber),
 	}, nil
 }
 
@@ -60,7 +66,20 @@ func newWakeFd(epollFd int)(int, error){
 }
 
 func GetEpollEventsFromIOEvent(eventType protocol.EventType)(Events uint32){
-	// TODO
+	var epollEvents uint32
+
+	if (eventType & protocol.EventErr) > 0{
+		epollEvents |= errEvent
+	}
+
+	if (eventType & protocol.EventRead) > 0{
+		epollEvents |= readEvent
+	}
+
+	if (eventType & protocol.EventWrite) > 0{
+		epollEvents |= writeEvent
+	}
+	return epollEvents
 }
 
 func(this *Multiplex)epollCtrl(op int, fd int, eventType protocol.EventType)error{
@@ -102,11 +121,10 @@ func(this *Multiplex)WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, tim
 	//	close(this.waitDone)
 	//}()
 
-	waitEvents := make([]unix.EpollEvent, waitEventsNumber)
 	var wake bool
 	this.running.Set(true)
 
-	n, err := unix.EpollWait(this.fd, waitEvents, timeMs)
+	n, err := unix.EpollWait(this.fd, this.waitEvents, timeMs)
 
 	if err != nil && err != unix.EINTR {
 		log.Error("EpollWait: ", err)
@@ -114,19 +132,19 @@ func(this *Multiplex)WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, tim
 	}
 
 	for i := 0; i < n; i++ {
-		fd := int(waitEvents[i].Fd)
+		fd := int(this.waitEvents[i].Fd)
 		if fd != this.wakeEventFd {
 			var rEvents protocol.EventType
-			if ((waitEvents[i].Events & unix.POLLHUP) != 0) && ((waitEvents[i].Events & unix.POLLIN) == 0) {
+			if ((this.waitEvents[i].Events & unix.POLLHUP) != 0) && ((this.waitEvents[i].Events & unix.POLLIN) == 0) {
 				rEvents |= protocol.EventClose
 			}
-			if waitEvents[i].Events&unix.EPOLLERR != 0{
+			if this.waitEvents[i].Events&unix.EPOLLERR != 0{
 				rEvents |= protocol.EventErr
 			}
-			if waitEvents[i].Events&(unix.EPOLLIN|unix.EPOLLPRI|unix.EPOLLRDHUP) != 0 {
+			if this.waitEvents[i].Events&(unix.EPOLLIN|unix.EPOLLPRI|unix.EPOLLRDHUP) != 0 {
 				rEvents |= protocol.EventRead
 			}
-			if waitEvents[i].Events&unix.EPOLLOUT != 0 {
+			if this.waitEvents[i].Events&unix.EPOLLOUT != 0 {
 				rEvents |= protocol.EventWrite
 			}
 			embedHandler(fd, rEvents)
@@ -144,8 +162,8 @@ func(this *Multiplex)WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, tim
 		}
 	}
 
-	if n == len(waitEvents) {
-		waitEvents = make([]unix.EpollEvent, n*2)
+	if n == len(this.waitEvents) {
+		this.waitEvents = make([]unix.EpollEvent, n*2)
 	}
 }
 
