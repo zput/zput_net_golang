@@ -1,26 +1,31 @@
 package event_loop
 
 import (
-	"github.com/zput/zput_net_golang/net/event_ctrl"
+	"github.com/Allenxuxu/gev/log"
 	"github.com/zput/zput_net_golang/net/event"
-	"github.com/zput/zput_net_golang/net/multiplex"
+	"github.com/zput/zput_net_golang/net/event_ctrl"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"sync"
 )
 
 type EventLoop struct{
-	multiplexPtr * multiplex.Multiplex
 	eventCtrl * event_ctrl.EventCtrl
 
+	// TODO wait add, remove, delete.
 	functions []protocol.DefaultFunction
 	mutex sync.Mutex
 }
 
-func New()*EventLoop{
+func New()(*EventLoop, error){
 	var loop EventLoop
+	var err error
 	// 不-让eventCtrl反向关联这个
-	loop.eventCtrl = event_ctrl.New()
-	return &loop
+	loop.eventCtrl, err = event_ctrl.New()
+	if err != nil{
+		log.Errorf("create eventCtrl error[%v]; in EventLoop", err)
+		return nil, err
+	}
+	return &loop, nil
 }
 
 func (this *EventLoop)AddEvent(event *event.Event){

@@ -101,7 +101,6 @@ func (this *Event)HandleEvent(revents protocol.EventType){
 			this.closeHandle()
 		}
 	}
-
 	if (revents & protocol.EventErr) != protocol.EventNone{
 		if this.errorHandle != nil{
 			this.errorHandle()

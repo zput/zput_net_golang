@@ -13,6 +13,7 @@ import (
 const readEvent = unix.EPOLLIN | unix.EPOLLPRI
 const writeEvent = unix.EPOLLOUT
 const errEvent = unix.EPOLLERR
+const nonEvent = 0
 
 const waitEventsNumber = 1024
 
@@ -67,6 +68,7 @@ func newWakeFd(epollFd int)(int, error){
 
 func GetEpollEventsFromIOEvent(eventType protocol.EventType)(Events uint32){
 	var epollEvents uint32
+	epollEvents = nonEvent
 
 	if (eventType & protocol.EventErr) > 0{
 		epollEvents |= errEvent
@@ -101,6 +103,14 @@ func(this *Multiplex) AddEvent(ioEvent *event.Event)bool{
 
 func(this *Multiplex) RemoveEvent(ioEvent *event.Event)bool{
 	if this.epollCtrl(unix.EPOLL_CTL_DEL, ioEvent.GetFd(), ioEvent.GetEvents()) != nil{
+		log.Error("remove epoll error.")
+		return false
+	}
+	return true
+}
+
+func(this *Multiplex) RemoveEventFd(fd int)bool{
+	if this.epollCtrl(unix.EPOLL_CTL_DEL, fd, protocol.EventNone) != nil{
 		log.Error("remove epoll error.")
 		return false
 	}

@@ -1,6 +1,7 @@
 package event_ctrl
 
 import (
+	"github.com/Allenxuxu/gev/log"
 	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"github.com/zput/zput_net_golang/net/multiplex"
@@ -8,15 +9,23 @@ import (
 
 type EventCtrl struct{
 	eventPool map[int]*event.Event
-	multi multiplex.Multiplex
+	multi *multiplex.Multiplex
 }
 
 /*
 todo: 这个eventPoll 需要进行加锁？ 还有其他的goroutine对它进行了操作？
 */
 
-func New()*EventCtrl{
-
+func New()(*EventCtrl, error){
+	var eventCtrl EventCtrl
+	var err error
+	eventCtrl.multi, err = multiplex.New()
+	if err != nil{
+		log.Errorf("create multiplex error[%v]; in eventCtrl", err)
+		return nil, err
+	}
+	eventCtrl.eventPool = make(map[int]*event.Event)
+	return &eventCtrl, nil
 }
 
 func (this *EventCtrl)AddEvent(event *event.Event){
@@ -25,12 +34,19 @@ func (this *EventCtrl)AddEvent(event *event.Event){
 }
 
 func (this *EventCtrl)RemoveEvent(event *event.Event){
-
 	_, ok := this.eventPool[event.GetFd()]
 	if ok {
 		delete(this.eventPool, event.GetFd())
 	}
 	this.multi.RemoveEvent(event)
+}
+
+func (this *EventCtrl)RemoveEventFd(fd int){
+	_, ok := this.eventPool[fd]
+	if ok {
+		delete(this.eventPool, fd)
+	}
+	this.multi.RemoveEventFd(fd)
 }
 
 func (this *EventCtrl)ModifyEvent(event *event.Event){
@@ -54,7 +70,7 @@ func (this *EventCtrl) handlerEventWrap(fd int, eventType protocol.EventType) {
 		if ok {
 			event.HandleEvent(eventType)
 		}else{
-			this.RemoveEvent(fd)
+			this.RemoveEventFd(fd)
 		}
 	}
 
