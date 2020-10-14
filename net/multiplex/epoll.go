@@ -4,7 +4,6 @@ package multiplex
 
 import (
 	"github.com/Allenxuxu/gev/log"
-	"github.com/Allenxuxu/toolkit/sync/atomic"
 	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"golang.org/x/sys/unix"
@@ -21,8 +20,6 @@ const waitEventsNumber = 1024
 type Multiplex struct {
 	fd       int // epoll fd
 	wakeEventFd  int // 用户唤醒的作用file describe
-	running  atomic.Bool
-	waitDone chan struct{}
 	waitEvents []unix.EpollEvent
 }
 
@@ -41,9 +38,16 @@ func New() (*Multiplex, error) {
 	return &Multiplex{
 		fd:       fd,
 		wakeEventFd:  wakeEventFd,
-		waitDone: make(chan struct{}),
 		waitEvents : make([]unix.EpollEvent, waitEventsNumber),
 	}, nil
+}
+
+//Close关闭epoll
+func (this *Multiplex) Close() (err error) {
+	//TODO error
+	_ = unix.Close(this.fd)
+	_ = unix.Close(this.wakeEventFd)
+	return
 }
 
 func newWakeFd(epollFd int)(int, error){
@@ -127,12 +131,7 @@ func(this *Multiplex) ModifyEvent(ioEvent *event.Event)bool{
 
 func(this *Multiplex)WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, timeMs int)(){
 
-	//defer func() {
-	//	close(this.waitDone)
-	//}()
-
 	var wake bool
-	this.running.Set(true)
 
 	n, err := unix.EpollWait(this.fd, this.waitEvents, timeMs)
 
@@ -162,13 +161,10 @@ func(this *Multiplex)WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, tim
 			this.wakeHandlerRead()
 			wake = true
 		}
-	}
 
-	if wake {
-		embedHandler(-1, 0)
-		wake = false
-		if !this.running.Get() {
-			return
+		if wake {
+			embedHandler(-1, 0)
+			wake = false
 		}
 	}
 
@@ -177,7 +173,7 @@ func(this *Multiplex)WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, tim
 	}
 }
 
-//---------------------------------------------
+//--------------wake up AND receive wake data------------------
 var wakeBytes = []byte{1, 0, 0, 0, 0, 0, 0, 0}
 
 // Wake 唤醒 epoll
@@ -196,19 +192,3 @@ func (this *Multiplex) wakeHandlerRead() {
 }
 //---------------------------------------------
 
-// Close 关闭 epoll
-func (this *Multiplex) Close() (err error) {
-	if !this.running.Get() {
-		return ErrClosed
-	}
-
-	this.running.Set(false)
-	if err = this.Wake(); err != nil {
-		return
-	}
-
-	<-this.waitDone //https://gfw.go101.org/article/channel.html
-	_ = unix.Close(this.fd)
-	_ = unix.Close(this.wakeEventFd)
-	return
-}

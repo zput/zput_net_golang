@@ -17,6 +17,14 @@ type Event struct{
 	closeHandle protocol.DefaultFunction
 }
 
+func New(eventLoop *event_loop.EventLoop, eventFd int)*Event{
+	var event = Event{
+		eventFd:eventFd,
+		eventLoop:eventLoop,
+	}
+	return &event
+}
+
 func (this *Event)EnableReading(isEnable bool){
 	if isEnable{
 		this.events |= protocol.EventRead

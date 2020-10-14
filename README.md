@@ -7,3 +7,22 @@ like one loop per goroutine thread
       ---> event
 -       
       
+      
+      
+有的时候确定目标，就行了，不要看到其他更好的实现就开始想实现另外的。   
+   
+   
+  
+//TODO超时关闭
+func (this *TcpConnect) closeTimeoutConn() func() {
+	return func() {
+		now := time.Now()
+		intervals := now.Sub(time.Unix(this.activeTime.Get(), 0))
+		if intervals >= this.idleTime {
+			_ = this.Close()
+		} else {
+			this.timingWheel.AfterFunc(this.idleTime-intervals, this.closeTimeoutConn())
+		}
+	}
+}   
+   

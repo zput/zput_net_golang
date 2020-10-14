@@ -28,6 +28,10 @@ func New()(*EventCtrl, error){
 	return &eventCtrl, nil
 }
 
+func (this *EventCtrl)Stop()error{
+	return this.multi.Close()
+}
+
 func (this *EventCtrl)AddEvent(event *event.Event){
 	this.eventPool[event.GetFd()]=event
 	this.multi.AddEvent(event)
