@@ -1,7 +1,7 @@
 package event_loop
 
 import (
-	"github.com/Allenxuxu/gev/log"
+	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/event_ctrl"
 	"github.com/zput/zput_net_golang/net/protocol"

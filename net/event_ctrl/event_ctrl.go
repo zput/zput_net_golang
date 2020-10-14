@@ -1,7 +1,7 @@
 package event_ctrl
 
 import (
-	"github.com/Allenxuxu/gev/log"
+	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"github.com/zput/zput_net_golang/net/multiplex"

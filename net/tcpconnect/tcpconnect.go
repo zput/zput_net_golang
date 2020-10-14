@@ -3,7 +3,7 @@ package tcpconnect
 import (
 	"errors"
 	"fmt"
-	"github.com/Allenxuxu/gev/log"
+	"github.com/zput/zput_net_golang/net/log"
 	"github.com/Allenxuxu/ringbuffer"
 	"github.com/Allenxuxu/ringbuffer/pool"
 	"github.com/Allenxuxu/toolkit/sync/atomic"

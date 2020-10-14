@@ -1,7 +1,7 @@
 package tcpserver
 
 import (
-	"github.com/Allenxuxu/gev/log"
+	"github.com/zput/zput_net_golang/net/log"
 	"github.com/Allenxuxu/toolkit/sync"
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/protocol"

@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/Allenxuxu/gev/log"
 	"github.com/Allenxuxu/ringbuffer"
 	"github.com/Allenxuxu/toolkit/sync/atomic"
 	"github.com/zput/zput_net_golang/net/event_loop"
+	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"github.com/zput/zput_net_golang/net/tcpconnect"
 	"github.com/zput/zput_net_golang/net/tcpserver"
@@ -48,10 +48,12 @@ func main() {
 	flag.IntVar(&loops, "loops", -1, "num loops")
 	flag.Parse()
 
+	log.Info("server begin")
 	mainLoopPtr, err := event_loop.New()
 	if err != nil{
 		log.Error(err)
 	}
+	log.Info("created event_loop successful")
 
 	s, err := tcpserver.New(handler, mainLoopPtr,
 		protocol.Network("tcp"),
@@ -61,9 +63,12 @@ func main() {
 		panic(err)
 	}
 
+	log.Info("created tcpserver successful")
+
 	//s.RunEvery(time.Second*2, func() {
 	//	log.Info("connections :", handler.Count.Get())
 	//})
 
 	s.Start()
+	log.Info("server end")
 }

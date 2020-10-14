@@ -7,5 +7,6 @@ require (
 	github.com/Allenxuxu/ringbuffer v0.0.6
 	github.com/Allenxuxu/toolkit v0.0.0-20200827004847-cb9a6f0d072f
 	github.com/libp2p/go-reuseport v0.0.1
+	github.com/micro/go-micro/v3 v3.0.0-beta.3
 	golang.org/x/sys v0.0.0-20201009025420-dfb3f7c4e634
 )
