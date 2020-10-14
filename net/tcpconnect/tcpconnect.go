@@ -58,9 +58,12 @@ func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr) (*TcpConnect, err
 		inBuffer:    pool.Get(),
 		state: Disconnected,
 	}
+	var(
+		err error
+	)
 
 	//设置不阻塞
-	err := tcpConnection.setNoDelay(true)
+	err = tcpConnection.setNoDelay(true)
 	if err != nil{
 		return nil, err
 	}
@@ -68,7 +71,11 @@ func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr) (*TcpConnect, err
 	//设置Tcp Accept event.
 	tcpConnection.event = event.New(loop, fd)
 	//将这个accept event添加到loop，给多路复用监听。
-	tcpConnection.loop.AddEvent(tcpConnection.event)
+	err = tcpConnection.loop.AddEvent(tcpConnection.event)
+	if err != nil{
+		log.Error("creating tcpConnect failure; AddEvent; error[%v]", err)
+		return nil, err
+	}
 
 	tcpConnection.event.SetReadFunc(tcpConnection.readEvent)
 	tcpConnection.event.SetCloseFunc(tcpConnection.readEvent)

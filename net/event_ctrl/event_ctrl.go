@@ -32,33 +32,34 @@ func (this *EventCtrl)Stop()error{
 	return this.multi.Close()
 }
 
-func (this *EventCtrl)AddEvent(event *event.Event){
+func (this *EventCtrl)AddEvent(event *event.Event)error{
 	this.eventPool[event.GetFd()]=event
-	this.multi.AddEvent(event)
+	return this.multi.AddEvent(event)
 }
 
-func (this *EventCtrl)RemoveEvent(event *event.Event){
+func (this *EventCtrl)RemoveEvent(event *event.Event)error{
 	_, ok := this.eventPool[event.GetFd()]
 	if ok {
 		delete(this.eventPool, event.GetFd())
 	}
-	this.multi.RemoveEvent(event)
+	return this.multi.RemoveEvent(event)
 }
 
-func (this *EventCtrl)RemoveEventFd(fd int){
+func (this *EventCtrl)RemoveEventFd(fd int)error{
 	_, ok := this.eventPool[fd]
 	if ok {
 		delete(this.eventPool, fd)
 	}
-	this.multi.RemoveEventFd(fd)
+	return this.multi.RemoveEventFd(fd)
 }
 
-func (this *EventCtrl)ModifyEvent(event *event.Event){
+func (this *EventCtrl)ModifyEvent(event *event.Event)error{
 	_, ok := this.eventPool[event.GetFd()]
 	if !ok {
 		// not exist
-		this.multi.ModifyEvent(event)
+		return this.multi.ModifyEvent(event)
 	}
+	return nil
 	// if it is already exist, don't need to modify epoll etc.
 }
 

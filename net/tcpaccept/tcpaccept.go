@@ -24,8 +24,10 @@ type TcpAccept struct {
 
 // New 创建Listener
 func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop) (*TcpAccept, error) {
-	var listener net.Listener
-	var err error
+	var (
+		listener net.Listener
+		err error
+	)
 	if option.ReusePort {
 		listener, err = reuseport.Listen(option.Network, option.Address)
 	} else {
@@ -47,7 +49,11 @@ func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop)
 	//设置Tcp Accept event.
 	tcpAccept.event = event.New(loop, tcpAccept.Fd())
 	//将这个accept event添加到loop，给多路复用监听。
-	tcpAccept.loop.AddEvent(tcpAccept.event)
+	err = tcpAccept.loop.AddEvent(tcpAccept.event)
+	if err != nil{
+		log.Error("creating tcpAccept failure; AddEvent; error[%v]", err)
+		return nil, err
+	}
 
 	tcpAccept.event.SetReadFunc(tcpAccept.AcceptHandle)
 

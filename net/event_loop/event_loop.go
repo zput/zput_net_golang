@@ -60,18 +60,24 @@ func (this *EventLoop)Stop()error{
 	return this.eventCtrl.Stop()
 }
 
-func (this *EventLoop)AddEvent(event *event.Event){
-	this.eventCtrl.AddEvent(event)
+func (this *EventLoop)AddEvent(event *event.Event)error{
+	return this.eventCtrl.AddEvent(event)
 }
 
-func (this *EventLoop)RemoveEvent(event *event.Event){
-	this.eventCtrl.RemoveEvent(event)
+func (this *EventLoop)RemoveEvent(event *event.Event)error{
+	return this.eventCtrl.RemoveEvent(event)
 }
 
-func (this *EventLoop)ModifyEvent(event *event.Event){
-	this.eventCtrl.ModifyEvent(event)
+func (this *EventLoop)ModifyEvent(event *event.Event)error{
+	return this.eventCtrl.ModifyEvent(event)
 }
 
+func(this *EventLoop)AddFunInLoop(fun protocol.AddFunToLoopWaitingRun){
+	this.mutex.Lock()
+	defer this.mutex.Unlock()
+
+	this.functions = append(this.functions, fun)
+}
 
 func (this *EventLoop)runAllFunctionInLoop(){
 	// TODO ?这里有race，来自于TcpAccept
@@ -83,11 +89,4 @@ func (this *EventLoop)runAllFunctionInLoop(){
 		this.functions[i]()
 	}
 	this.functions = nil
-}
-
-func(this *EventLoop)AddFunInLoop(fun protocol.AddFunToLoopWaitingRun){
-	this.mutex.Lock()
-	defer this.mutex.Unlock()
-
-	this.functions = append(this.functions, fun)
 }

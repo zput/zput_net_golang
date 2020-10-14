@@ -5,8 +5,8 @@ import (
 )
 
 type ILoopOperatorEvent interface {
-	ModifyEvent(event *Event)
-	RemoveEvent(event *Event)
+	ModifyEvent(event *Event)error
+	RemoveEvent(event *Event)error
 }
 
 type Event struct{

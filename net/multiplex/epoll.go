@@ -94,39 +94,39 @@ func(this *Multiplex)epollCtrl(op int, fd int, eventType protocol.EventType)erro
 		Events : GetEpollEventsFromIOEvent(eventType),
 		Fd: int32(fd),
 	}
-	return unix.EpollCtl(this.wakeEventFd, op, fd, &epollEvent)
+	return unix.EpollCtl(this.fd, op, fd, &epollEvent)
 }
 
-func(this *Multiplex) AddEvent(ioEvent *event.Event)bool{
-	if this.epollCtrl(unix.EPOLL_CTL_ADD, ioEvent.GetFd(), ioEvent.GetEvents()) != nil{
-		log.Error("add epoll error.")
-		return false
+func(this *Multiplex) AddEvent(ioEvent *event.Event)error{
+	if err := this.epollCtrl(unix.EPOLL_CTL_ADD, ioEvent.GetFd(), ioEvent.GetEvents()); err != nil{
+		log.Errorf("add epoll error[%v]", err)
+		return err
 	}
-	return true
+	return nil
 }
 
-func(this *Multiplex) RemoveEvent(ioEvent *event.Event)bool{
-	if this.epollCtrl(unix.EPOLL_CTL_DEL, ioEvent.GetFd(), ioEvent.GetEvents()) != nil{
-		log.Error("remove epoll error.")
-		return false
+func(this *Multiplex) RemoveEvent(ioEvent *event.Event)error{
+	if err := this.epollCtrl(unix.EPOLL_CTL_DEL, ioEvent.GetFd(), ioEvent.GetEvents()); err != nil{
+		log.Error("remove epoll error[%v]", err)
+		return err
 	}
-	return true
+	return nil
 }
 
-func(this *Multiplex) RemoveEventFd(fd int)bool{
-	if this.epollCtrl(unix.EPOLL_CTL_DEL, fd, protocol.EventNone) != nil{
-		log.Error("remove epoll error.")
-		return false
+func(this *Multiplex) RemoveEventFd(fd int)error{
+	if err := this.epollCtrl(unix.EPOLL_CTL_DEL, fd, protocol.EventNone);err != nil{
+		log.Error("remove epoll error[%v]", err)
+		return err
 	}
-	return true
+	return nil
 }
 
-func(this *Multiplex) ModifyEvent(ioEvent *event.Event)bool{
-	if this.epollCtrl(unix.EPOLL_CTL_MOD, ioEvent.GetFd(), ioEvent.GetEvents()) != nil{
-		log.Error("modify epoll error.")
-		return false
+func(this *Multiplex) ModifyEvent(ioEvent *event.Event)error{
+	if err := this.epollCtrl(unix.EPOLL_CTL_MOD, ioEvent.GetFd(), ioEvent.GetEvents()); err != nil{
+		log.Error("modify epoll error[%v]", err)
+		return err
 	}
-	return true
+	return nil
 }
 
 func(this *Multiplex)WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, timeMs int)(){
