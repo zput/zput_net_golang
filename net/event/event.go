@@ -1,15 +1,19 @@
 package event
 
 import (
-	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/protocol"
 )
+
+type ILoopOperatorEvent interface {
+	ModifyEvent(event *Event)
+	RemoveEvent(event *Event)
+}
 
 type Event struct{
 	eventFd int
 	events protocol.EventType
 
-	eventLoop *event_loop.EventLoop
+	eventLoopImp ILoopOperatorEvent
 
 	readHandle protocol.DefaultFunction
 	writeHandle protocol.DefaultFunction
@@ -17,10 +21,10 @@ type Event struct{
 	closeHandle protocol.DefaultFunction
 }
 
-func New(eventLoop *event_loop.EventLoop, eventFd int)*Event{
+func New(eventLoopImp ILoopOperatorEvent, eventFd int)*Event{
 	var event = Event{
 		eventFd:eventFd,
-		eventLoop:eventLoop,
+		eventLoopImp: eventLoopImp,
 	}
 	return &event
 }
@@ -96,11 +100,11 @@ func(this *Event)SetCloseFunc(function protocol.DefaultFunction){
 }
 
 func (this *Event)update(){
-	this.eventLoop.ModifyEvent(this)
+	this.eventLoopImp.ModifyEvent(this)
 }
 
 func (this *Event)RemoveFromLoop(){
-	this.eventLoop.RemoveEvent(this)
+	this.eventLoopImp.RemoveEvent(this)
 }
 
 func (this *Event)HandleEvent(revents protocol.EventType){

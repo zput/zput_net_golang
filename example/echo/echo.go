@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/Allenxuxu/gev/log"
 	"github.com/Allenxuxu/ringbuffer"
 	"github.com/Allenxuxu/toolkit/sync/atomic"
 	"github.com/zput/zput_net_golang/net/event_loop"
@@ -25,10 +26,11 @@ func (this *Echo) ConnectCallback(c *tcpconnect.TcpConnect) {
 	this.Count.Add(1)
 	this.HandleEventImpl.ConnectCallback(c)
 }
-func (this *Echo) MessageCallback(c *tcpconnect.TcpConnect, r *ringbuffer.RingBuffer) {
-	//log.Println("OnMessage")
-	out = data
-	return
+func (this *Echo) MessageCallback(c *tcpconnect.TcpConnect, buffer *ringbuffer.RingBuffer) {
+	tempData := buffer.Bytes()
+	buffer.RetrieveAll()
+
+	c.Write(tempData)
 }
 
 func (this *Echo) OnClose(c *tcpconnect.TcpConnect) {
@@ -46,9 +48,12 @@ func main() {
 	flag.IntVar(&loops, "loops", -1, "num loops")
 	flag.Parse()
 
-	var mainLoop event_loop.EventLoop
+	mainLoopPtr, err := event_loop.New()
+	if err != nil{
+		log.Error(err)
+	}
 
-	s, err := tcpserver.New(handler, &mainLoop,
+	s, err := tcpserver.New(handler, mainLoopPtr,
 		protocol.Network("tcp"),
 		protocol.Address(":"+strconv.Itoa(port)),
 		protocol.NumLoops(loops))

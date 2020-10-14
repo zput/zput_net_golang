@@ -13,7 +13,7 @@ import (
 
 type TcpServer struct{
 	options *protocol.Options
-	handleEvent protocol.IHandleEvent
+	handleEvent IHandleEvent
 	loop *event_loop.EventLoop
 	threadPoolIsRunLoopFun []*event_loop.EventLoop
 	tcpAccept *tcpaccept.TcpAccept
@@ -21,7 +21,7 @@ type TcpServer struct{
 	nextLoopIndex int
 }
 
-func New(handleEvent protocol.IHandleEvent, loop *event_loop.EventLoop, opts ...protocol.Option)(*TcpServer, error){
+func New(handleEvent IHandleEvent, loop *event_loop.EventLoop, opts ...protocol.Option)(*TcpServer, error){
 	var tcpServer = TcpServer{
 		handleEvent:handleEvent,
 		loop:loop,
