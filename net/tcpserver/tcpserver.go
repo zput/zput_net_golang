@@ -21,8 +21,9 @@ type TcpServer struct{
 	nextLoopIndex int
 }
 
-func New(loop *event_loop.EventLoop, opts ...protocol.Option)(*TcpServer, error){
+func New(handleEvent protocol.IHandleEvent, loop *event_loop.EventLoop, opts ...protocol.Option)(*TcpServer, error){
 	var tcpServer = TcpServer{
+		handleEvent:handleEvent,
 		loop:loop,
 		options:protocol.NewOptions(opts...),
 		connectPool:make(map[string]*tcpconnect.TcpConnect),
