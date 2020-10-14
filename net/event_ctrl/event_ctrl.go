@@ -55,10 +55,12 @@ func (this *EventCtrl)RemoveEventFd(fd int)error{
 
 func (this *EventCtrl)ModifyEvent(event *event.Event)error{
 	_, ok := this.eventPool[event.GetFd()]
-	if !ok {
+	if ok {
 		// not exist
 		return this.multi.ModifyEvent(event)
 	}
+	// TODO warn
+	log.Error("EventCtrl.ModifyEvent; can't find this fd[%d] in eventPool", event.GetFd())
 	return nil
 	// if it is already exist, don't need to modify epoll etc.
 }

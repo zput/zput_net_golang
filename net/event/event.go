@@ -29,36 +29,36 @@ func New(eventLoopImp ILoopOperatorEvent, eventFd int)*Event{
 	return &event
 }
 
-func (this *Event)EnableReading(isEnable bool){
+func (this *Event)EnableReading(isEnable bool)error{
 	if isEnable{
 		this.events |= protocol.EventRead
 	}else{
 		this.events &= ^protocol.EventRead
 	}
-	this.update()
+	return this.update()
 }
 
-func (this *Event)EnableWriting(isEnable bool){
+func (this *Event)EnableWriting(isEnable bool)error{
 	if isEnable{
 		this.events |= protocol.EventWrite
 	}else{
 		this.events &= ^protocol.EventWrite
 	}
-	this.update()
+	return this.update()
 }
 
-func (this *Event)EnableErrorEvent(isEnable bool){
+func (this *Event)EnableErrorEvent(isEnable bool)error{
 	if isEnable{
 		this.events |= protocol.EventErr
 	}else{
 		this.events &= ^protocol.EventErr
 	}
-	this.update()
+	return this.update()
 }
 
-func (this *Event)DisableAll(){
+func (this *Event)DisableAll()error{
 	this.events = protocol.EventNone
-	this.update()
+	return this.update()
 }
 
 func (this *Event)IsWriting()bool{
@@ -99,12 +99,12 @@ func(this *Event)SetCloseFunc(function protocol.DefaultFunction){
 	this.closeHandle = function
 }
 
-func (this *Event)update(){
-	this.eventLoopImp.ModifyEvent(this)
+func (this *Event)update()error{
+	return this.eventLoopImp.ModifyEvent(this)
 }
 
-func (this *Event)RemoveFromLoop(){
-	this.eventLoopImp.RemoveEvent(this)
+func (this *Event)RemoveFromLoop()error{
+	return this.eventLoopImp.RemoveEvent(this)
 }
 
 func (this *Event)HandleEvent(revents protocol.EventType){

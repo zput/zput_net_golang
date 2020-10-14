@@ -46,7 +46,8 @@ func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop)
 	if err != nil {
 		return nil, err
 	}
-	//设置Tcp Accept event.
+	log.Debugf("created listen fd[%d]; in tcp accept", tcpAccept.Fd())
+	//新建Tcp Accept event.
 	tcpAccept.event = event.New(loop, tcpAccept.Fd())
 	//将这个accept event添加到loop，给多路复用监听。
 	err = tcpAccept.loop.AddEvent(tcpAccept.event)
@@ -60,13 +61,25 @@ func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop)
 	return &tcpAccept, nil
 }
 
+func (this *TcpAccept)Listen()error{
+	log.Debugf("enable reading; in tcp accept activity; event[%+v]", this.event)
+	return this.event.EnableReading(true)
+}
+
 // Close TcpAccept
 func (this *TcpAccept) Close()error{
 	this.loop.AddFunInLoop(func() {
-		this.event.DisableAll()
-		this.event.RemoveFromLoop()
+		var err error
+		err = this.event.DisableAll()
+		if err != nil{
+			log.Errorf("close event.DisableAll; error[%v]", err)
+		}
+		err = this.event.RemoveFromLoop()
+		if err != nil{
+			log.Errorf("close event.RemoveFromLoop; error[%v]", err)
+		}
 		if err := this.listener.Close(); err != nil {
-			log.Error("[Listener] close error: ", err)
+			log.Errorf("[Listener] close; error[%v] ", err)
 		}
 	})
 	return nil

@@ -38,3 +38,5 @@ type AddFunToLoopWaitingRun func()
 
 // ErrClosed 重复 close poller 错误
 var ErrClosed = errors.New("poller instance is not running")
+
+const WaitEventsNumber = 1024

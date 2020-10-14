@@ -64,6 +64,12 @@ func New(handleEvent IHandleEvent, loop *event_loop.EventLoop, opts ...protocol.
 
 // Start 启动 Server
 func (this *TcpServer) Start() {
+
+	err := this.tcpAccept.Listen()
+	if err != nil{
+		panic(err)
+	}
+
 	sw := sync.WaitGroupWrapper{}
 
 	length := len(this.threadPoolIsRunLoopFun)
@@ -110,9 +116,12 @@ func (this *TcpServer)newConnected(fd int, sa unix.Sockaddr){
 
 	c, err := tcpconnect.New(loopTemp, fd, sa)
 	if err != nil{
-		log.Error("failure to create new connection")
+		log.Errorf("failure to create new connection; error[%v]", err)
 		return
 	}
+
+	log.Debugf("a connection[%s] is enter", c.PeerAddr())
+
 	this.addConnect(c.PeerAddr(), c)
 	c.SetMessageCallback(this.handleEvent.MessageCallback)
 	c.SetConnectCloseCallback(this.connectCloseEvent)

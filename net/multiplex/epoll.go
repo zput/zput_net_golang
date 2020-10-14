@@ -14,7 +14,6 @@ const writeEvent = unix.EPOLLOUT
 const errEvent = unix.EPOLLERR
 const nonEvent = 0
 
-const waitEventsNumber = 1024
 
 // Multiplex Epoll封装
 type Multiplex struct {
@@ -38,7 +37,7 @@ func New() (*Multiplex, error) {
 	return &Multiplex{
 		fd:       fd,
 		wakeEventFd:  wakeEventFd,
-		waitEvents : make([]unix.EpollEvent, waitEventsNumber),
+		waitEvents : make([]unix.EpollEvent, protocol.WaitEventsNumber),
 	}, nil
 }
 
@@ -98,6 +97,7 @@ func(this *Multiplex)epollCtrl(op int, fd int, eventType protocol.EventType)erro
 }
 
 func(this *Multiplex) AddEvent(ioEvent *event.Event)error{
+	log.Debugf("AddEvent; ioEvent; fd:%v, eventType:%v", ioEvent.GetFd(), ioEvent.GetEvents())
 	if err := this.epollCtrl(unix.EPOLL_CTL_ADD, ioEvent.GetFd(), ioEvent.GetEvents()); err != nil{
 		log.Errorf("add epoll error[%v]", err)
 		return err
@@ -122,6 +122,7 @@ func(this *Multiplex) RemoveEventFd(fd int)error{
 }
 
 func(this *Multiplex) ModifyEvent(ioEvent *event.Event)error{
+	log.Debugf("ModifyEvent; ioEvent; fd:%v, eventType:%v", ioEvent.GetFd(), ioEvent.GetEvents())
 	if err := this.epollCtrl(unix.EPOLL_CTL_MOD, ioEvent.GetFd(), ioEvent.GetEvents()); err != nil{
 		log.Error("modify epoll error[%v]", err)
 		return err
@@ -136,9 +137,10 @@ func(this *Multiplex)WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, tim
 	n, err := unix.EpollWait(this.fd, this.waitEvents, timeMs)
 
 	if err != nil && err != unix.EINTR {
-		log.Error("EpollWait: ", err)
+		log.Errorf("unix.EpollWait error[%v] ", err)
 		return
 	}
+	log.Debugf("in wait event; %d happened", n)
 
 	for i := 0; i < n; i++ {
 		fd := int(this.waitEvents[i].Fd)
