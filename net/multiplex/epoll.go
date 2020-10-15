@@ -22,7 +22,7 @@ type Multiplex struct {
 	waitEvents []unix.EpollEvent
 }
 
-// 创建Poller对象
+// 创建epoll对象
 func New() (*Multiplex, error) {
 	fd, err := unix.EpollCreate1(unix.EPOLL_CLOEXEC)
 	if err != nil {
@@ -49,6 +49,7 @@ func (this *Multiplex) Close() (err error) {
 	return
 }
 
+//为了创建唤醒的fd,初始化的时候就加入到epoll里面.
 func newWakeFd(epollFd int)(int, error){
 
 	r0, _, errno := unix.Syscall(unix.SYS_EVENTFD2, 0, 0, 0)

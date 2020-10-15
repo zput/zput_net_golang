@@ -18,7 +18,7 @@ const (
 	EventRead  EventType = 0x1
 	EventWrite EventType = 0x2
 	EventErr   EventType = 0x80
-	EventClose   EventType = 0x100
+	EventClose EventType = 0x100
 	EventNone  EventType = 0
 )
 
