@@ -5,11 +5,10 @@ package multiplex
 import (
 	"errors"
 	"github.com/zput/zput_net_golang/net/event"
-	"github.com/zput/zput_net_golang/net/protocol"
-	"sync"
-
 	"github.com/zput/zput_net_golang/net/log"
+	"github.com/zput/zput_net_golang/net/protocol"
 	"golang.org/x/sys/unix"
+	"sync"
 )
 
 // Multiplex Kqueue封装
@@ -113,12 +112,19 @@ func (this *Multiplex) kEvents(old protocol.EventType, new protocol.EventType, f
 // Poll 启动 kqueue 循环
 func (this *Multiplex) WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, timeMs int) {
 
+	var timeOut = unix.Timespec{
+		Sec: int64(timeMs/1000),
+		Nsec: 0,
+	}
+
 	var wake bool
-	n, err := unix.Kevent(this.fd, nil, this.waitEvents, nil)
+	n, err := unix.Kevent(this.fd, nil, this.waitEvents, &timeOut)
 	if err != nil && err != unix.EINTR {
 		log.Errorf("EpollWait; error[%v]", err)
 		return
 	}
+
+	log.Debugf("in wait event; %d happened", n)
 
 	for i := 0; i < n; i++ {
 		fd := int(this.waitEvents[i].Ident)
