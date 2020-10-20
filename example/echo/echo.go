@@ -1,9 +1,9 @@
 package main
 
 import (
+	"sync/atomic"
 	"flag"
-	"github.com/Allenxuxu/ringbuffer"
-	"github.com/Allenxuxu/toolkit/sync/atomic"
+	"github.com/zput/ringbuffer"
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
@@ -19,22 +19,22 @@ import (
 
 type Echo struct {
 	tcpserver.HandleEventImpl
-	Count atomic.Int64
+	Count int64
 }
 
 func (this *Echo) ConnectCallback(c *tcpconnect.TcpConnect) {
-	this.Count.Add(1)
+	atomic.AddInt64(&this.Count, 1)
 	this.HandleEventImpl.ConnectCallback(c)
 }
 func (this *Echo) MessageCallback(c *tcpconnect.TcpConnect, buffer *ringbuffer.RingBuffer) {
-	tempData := buffer.Bytes()
+	tempData := buffer.ReadAll2NewByteSlice()
 	buffer.RetrieveAll()
 
 	c.Write(tempData)
 }
 
 func (this *Echo) OnClose(c *tcpconnect.TcpConnect) {
-	this.Count.Add(-1)
+	atomic.AddInt64(&this.Count, -1)
 	this.HandleEventImpl.ConnectCloseCallback(c)
 }
 

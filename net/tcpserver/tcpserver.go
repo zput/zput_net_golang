@@ -1,9 +1,8 @@
 package tcpserver
 
 import (
-	"github.com/zput/zput_net_golang/net/log"
-	"github.com/Allenxuxu/toolkit/sync"
 	"github.com/zput/zput_net_golang/net/event_loop"
+	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"github.com/zput/zput_net_golang/net/tcpaccept"
 	"github.com/zput/zput_net_golang/net/tcpconnect"
@@ -70,7 +69,7 @@ func (this *TcpServer) Start() {
 		panic(err)
 	}
 
-	sw := sync.WaitGroupWrapper{}
+	sw := protocol.WaitGroupWrapper{}
 
 	length := len(this.threadPoolIsRunLoopFun)
 	for i := 0; i < length; i++ {

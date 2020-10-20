@@ -3,7 +3,7 @@ package tcpserver
 import (
 	"fmt"
 	"github.com/zput/zput_net_golang/net/tcpconnect"
-	"github.com/Allenxuxu/ringbuffer"
+	"github.com/zput/ringbuffer"
 )
 
 type IHandleEvent interface {

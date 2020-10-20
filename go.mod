@@ -3,10 +3,13 @@ module github.com/zput/zput_net_golang
 go 1.13
 
 require (
-	github.com/Allenxuxu/gev v0.1.9
-	github.com/Allenxuxu/ringbuffer v0.0.6
-	github.com/Allenxuxu/toolkit v0.0.0-20200827004847-cb9a6f0d072f
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/libp2p/go-reuseport v0.0.1
-	github.com/micro/go-micro/v3 v3.0.0-beta.3
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/stretchr/testify v1.6.1 // indirect
+	github.com/zput/ringbuffer v0.0.1
 	golang.org/x/sys v0.0.0-20201009025420-dfb3f7c4e634
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 )

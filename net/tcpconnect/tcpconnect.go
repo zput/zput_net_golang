@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zput/zput_net_golang/net/log"
-	"github.com/Allenxuxu/ringbuffer"
-	"github.com/Allenxuxu/ringbuffer/pool"
-	"github.com/Allenxuxu/toolkit/sync/atomic"
+	"github.com/zput/ringbuffer"
+	"github.com/zput/ringbuffer/pool"
 	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"golang.org/x/sys/unix"
@@ -43,7 +42,6 @@ type TcpConnect struct {
 	peerAddr  string
 
 	idleTime    time.Duration
-	activeTime  atomic.Int64
 }
 
 var ErrConnectionClosed = errors.New("connection closed")
@@ -166,7 +164,7 @@ func (this *TcpConnect) writeEvent(fd int) {
 		this.outBuffer.Retrieve(n)
 	}
 
-	if this.outBuffer.Length() == 0 {
+	if this.outBuffer.Size() == 0 {
 		log.Info("[close write]")
 		this.event.EnableWriting(false)
 
@@ -178,7 +176,7 @@ func (this *TcpConnect) writeEvent(fd int) {
 }
 
 func (this *TcpConnect) Write(data []byte) {
-	if this.outBuffer.Length() > 0 {
+	if this.outBuffer.Size() > 0 {
 		_, _ = this.outBuffer.Write(data)
 	} else {
 		n, err := unix.Write(this.fd, data)
