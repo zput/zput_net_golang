@@ -143,6 +143,23 @@ func (this *TcpConnect) ConnectedHandle() {
 	this.state = Connected
 	this.event.EnableReading(true)
 	//epoll为电平触发
+	/*
+	LT 电平触发    高电平触发
+	----------------------
+		EPOLLIN事件  数据可读
+		内核中的socket接收缓冲区 为空  低电平  不会触发
+		内核中的socket接收缓冲区 不为空  高电平  会触发
+		-----------------------------------------
+		EPOLLOUT事件 数据可写
+		内核中的socket发送缓冲区不满   高电平
+		内核中的socket发送缓冲区 满    低电平
+
+	ET 边沿触发  转换的时候触发
+	----------------------
+		由低电平-》高电平  才会 触发
+		高电平-》低电平 触发
+	*/
+
 	//event->enableWriting(true);
 	this.event.EnableErrorEvent(true)
 }

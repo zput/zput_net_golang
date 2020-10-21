@@ -19,10 +19,12 @@ type Level int
 const (
 	// LevelFatal fatal level
 	LevelFatal Level = iota + 1
-	// LevelInfo info level
-	LevelInfo
 	// LevelError error level
 	LevelError
+	// LevelWarn info level
+	LevelWarn
+	// LevelInfo info level
+	LevelInfo
 	// LevelDebug debug level
 	LevelDebug
 )
@@ -32,7 +34,9 @@ var (
 	logger Logger = &defaultLogLogger{}
 
 	// default log level is info
-	level = LevelDebug
+	//level = LevelDebug
+	//level = LevelInfo
+	level = LevelWarn
 
 	// prefix for all messages, default is "[Gev]"
 	prefix = "[zput]"
@@ -50,14 +54,16 @@ func (t *defaultLogLogger) Logf(format string, v ...interface{}) {
 
 func init() {
 	switch os.Getenv("GEV_LOG_LEVEL") {
-	case "debug":
-		level = LevelDebug
-	case "info":
-		level = LevelInfo
-	case "error":
-		level = LevelError
 	case "fatal":
 		level = LevelFatal
+	case "error":
+		level = LevelError
+	case "warn":
+		level = LevelWarn
+	case "info":
+		level = LevelInfo
+	case "debug":
+		level = LevelDebug
 	}
 }
 

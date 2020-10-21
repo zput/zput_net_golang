@@ -1,9 +1,9 @@
 package tcpserver
 
 import (
-	"fmt"
-	"github.com/zput/zput_net_golang/net/tcpconnect"
 	"github.com/zput/ringbuffer"
+	"github.com/zput/zput_net_golang/net/log"
+	"github.com/zput/zput_net_golang/net/tcpconnect"
 )
 
 type IHandleEvent interface {
@@ -16,19 +16,19 @@ type IHandleEvent interface {
 type HandleEventImpl struct{}
 
 func(this *HandleEventImpl)ConnectCallback(c *tcpconnect.TcpConnect){
-	fmt.Printf("connect:[%s]", c.PeerAddr())
+	log.Info("connect:[%s]", c.PeerAddr())
 }
 
 func(this *HandleEventImpl)MessageCallback(c *tcpconnect.TcpConnect, r *ringbuffer.RingBuffer){
-	fmt.Printf("connect:[%s] send message[%s]", c.PeerAddr(), r.PrintRingBufferInfo())
+	log.Info("connect:[%s] send message[%s]", c.PeerAddr(), r.PrintRingBufferInfo())
 }
 
 func(this *HandleEventImpl)WriteCompletCallback(c *tcpconnect.TcpConnect){
-	fmt.Printf("write complet:[%s]", c.PeerAddr())
+	log.Info("write complet:[%s]", c.PeerAddr())
 }
 
 func(this *HandleEventImpl)ConnectCloseCallback(c *tcpconnect.TcpConnect){
-	fmt.Printf("connect close:[%s]", c.PeerAddr())
+	log.Info("connect close:[%s]", c.PeerAddr())
 }
 
 

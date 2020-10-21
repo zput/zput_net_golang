@@ -1,3 +1,50 @@
+# zput_net_golang网络库
+
+[![LICENSE](https://img.shields.io/badge/LICENSE-MIT-blue)](https://github.com/zput/zput_net_golang/blob/master/LICENSE)
+[![Github Actions](https://github.com/zput/zput_net_golang/workflows/CI/badge.svg)](https://github.com/zput/zput_net_golang/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zput/zput_net_golang)](https://goreportcard.com/report/github.com/zput/zput_net_golang)
+[![GoDoc](https://godoc.org/github.com/zput/zput_net_golang?status.svg)](https://godoc.org/github.com/zput/zput_net_golang)
+
+#### 中文 | [English](README.md)
+
+zput_net_golang基于事件驱动(Reactor模式)的高性能,非阻塞和轻量级网络框架，不使用标准golang语言net网络包, 它的多路复用根据不同系统使用不同的系统函数(epoll(linux系统)和kqueue(FreeBSD系统)), 轻松快速搭建高性能服务器.
+    
+    
+## 特点
+
+- non-blocking I/O.
+- Multi-Goroutine support, each Goroutine run an event-driven event-loop.
+- Read-write buffers use scalable Ring Buffer.
+- Support for port reuse (SO_REUSEPORT).
+- Support for Event Timing Tasks.
+
+## 性能测试
+
+<details>
+  <summary> 📈 测试数据 </summary>
+
+> 测试电脑 Mac 
+
+### 读写测试
+
+```golang
+
+```
+
+</details>
+
+## 安装
+
+```bash
+go get -u github.com/zput/ringbuffer
+```
+
+## 示例
+
+<details>
+  <summary> echo server</summary>
+
+```go
 package main
 
 import (
@@ -79,3 +126,16 @@ func main() {
 	s.Start()
 	log.Info("server end")
 }
+```
+
+</details>
+
+
+## 参考
+
+- [evio](https://github.com/tidwall/evio)
+- [muduo](https://github.com/chenshuo/muduo)
+
+## 附录
+
+欢迎PR
