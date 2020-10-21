@@ -3,11 +3,13 @@ package tcpconnect
 import (
 	"errors"
 	"fmt"
+	"github.com/RussellLuo/timingwheel"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/ringbuffer"
 	"github.com/zput/ringbuffer/pool"
 	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/event_loop"
+	"github.com/zput/zput_net_golang/net/protocol"
 	"golang.org/x/sys/unix"
 	"net"
 	"strconv"
@@ -42,12 +44,14 @@ type TcpConnect struct {
 	peerAddr  string
 
 	idleTime    time.Duration
+	activeTime  protocol.Int64
+	timingWheel *timingwheel.TimingWheel
 }
 
 var ErrConnectionClosed = errors.New("connection closed")
 
 // New 创建 Connection
-func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr) (*TcpConnect, error) {
+func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration,) (*TcpConnect, error) {
 	var tcpConnection = TcpConnect{
 		loop: loop,
 		fd:          fd,
@@ -55,10 +59,17 @@ func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr) (*TcpConnect, err
 		outBuffer:   pool.Get(),
 		inBuffer:    pool.Get(),
 		state: Disconnected,
+		idleTime:    idleTime,
+		timingWheel: tw,
 	}
 	var(
 		err error
 	)
+
+	if tcpConnection.idleTime > 0 {
+		_ = tcpConnection.activeTime.Swap(time.Now().Unix())
+		tcpConnection.timingWheel.AfterFunc(tcpConnection.idleTime, tcpConnection.closeTimeoutConn())
+	}
 
 	//设置不阻塞
 	err = tcpConnection.setNoDelay(true)
@@ -95,6 +106,18 @@ func (this *TcpConnect) Close() error {
 	return nil
 }
 
+func (this *TcpConnect) closeTimeoutConn() func() {
+	return func() {
+		now := time.Now()
+		intervals := now.Sub(time.Unix(this.activeTime.Get(), 0))
+		if intervals >= this.idleTime {
+			_ = this.Close()
+		} else {
+			this.timingWheel.AfterFunc(this.idleTime-intervals, this.closeTimeoutConn())
+		}
+	}
+}
+
 func (this *TcpConnect) setNoDelay(enable bool)(err error){
 	if err = unix.SetNonblock(this.fd, enable); err != nil {
 		_ = unix.Close(this.fd)
@@ -125,6 +148,8 @@ func (this *TcpConnect) ConnectedHandle() {
 }
 
 func (this *TcpConnect) readEvent() {
+	this.updateActivityTime()
+
 	buf := make([]byte, 0xFFFF)
 	n, err := unix.Read(this.fd, buf)
 	if n == 0 || err != nil {
@@ -141,6 +166,8 @@ func (this *TcpConnect) readEvent() {
 }
 
 func (this *TcpConnect) writeEvent(fd int) {
+	this.updateActivityTime()
+
 	first, end := this.outBuffer.PeekAll()
 	n, err := unix.Write(this.fd, first)
 	if err != nil {
@@ -193,7 +220,7 @@ func (this *TcpConnect) Write(data []byte) {
 			_, _ = this.outBuffer.Write(data[n:])
 		}
 
-		if this.outBuffer.Length() > 0 {
+		if this.outBuffer.Size() > 0 {
 			this.event.EnableWriting(true)
 		}
 	}
@@ -263,5 +290,11 @@ func sockAddrToString(sa unix.Sockaddr) string {
 		return net.JoinHostPort(net.IP(sa.Addr[:]).String(), strconv.Itoa(sa.Port))
 	default:
 		return fmt.Sprintf("(unknown - %T)", sa)
+	}
+}
+
+func (this *TcpConnect)updateActivityTime(){
+	if this.idleTime > 0 {
+		_ = this.activeTime.Swap(time.Now().Unix())
 	}
 }

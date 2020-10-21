@@ -1,6 +1,7 @@
 package tcpserver
 
 import (
+	"github.com/RussellLuo/timingwheel"
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
@@ -8,6 +9,7 @@ import (
 	"github.com/zput/zput_net_golang/net/tcpconnect"
 	"golang.org/x/sys/unix"
 	"runtime"
+	"time"
 )
 
 type TcpServer struct{
@@ -18,6 +20,8 @@ type TcpServer struct{
 	tcpAccept *tcpaccept.TcpAccept
 	connectPool map[string]*tcpconnect.TcpConnect
 	nextLoopIndex int
+
+	timingWheel *timingwheel.TimingWheel
 }
 
 func New(handleEvent IHandleEvent, loop *event_loop.EventLoop, opts ...protocol.Option)(*TcpServer, error){
@@ -29,6 +33,9 @@ func New(handleEvent IHandleEvent, loop *event_loop.EventLoop, opts ...protocol.
 	}
 
 	var err error
+
+	tcpServer.timingWheel = timingwheel.NewTimingWheel(tcpServer.options.GetTick(), tcpServer.options.GetWheelSize())
+
 	//创建一个tcp accept
 	tcpServer.tcpAccept, err = tcpaccept.New(tcpServer.options.GetNet(), loop)
 	if err != nil{
@@ -63,6 +70,7 @@ func New(handleEvent IHandleEvent, loop *event_loop.EventLoop, opts ...protocol.
 
 // Start 启动 Server
 func (this *TcpServer) Start() {
+	this.timingWheel.Start()
 
 	err := this.tcpAccept.Listen()
 	if err != nil{
@@ -86,6 +94,9 @@ func (this *TcpServer) Stop() {
 	var (
 		err error
 	)
+
+	this.timingWheel.Stop()
+
 	err = this.tcpAccept.Close()
 	if err != nil{
 		log.Error(err)
@@ -110,10 +121,20 @@ func (this *TcpServer) Stop() {
 	}
 }
 
+// RunAfter 延时任务
+func (this *TcpServer) RunAfter(d time.Duration, f func()) *timingwheel.Timer {
+	return this.timingWheel.AfterFunc(d, f)
+}
+
+// RunEvery 定时任务
+func (this *TcpServer) RunEvery(d time.Duration, f func()) *timingwheel.Timer {
+	return this.timingWheel.ScheduleFunc(&protocol.EveryScheduler{Interval: d}, f)
+}
+
 func (this *TcpServer)newConnected(fd int, sa unix.Sockaddr){
 	loopTemp := this.getOneLoopFromPool()
 
-	c, err := tcpconnect.New(loopTemp, fd, sa)
+	c, err := tcpconnect.New(loopTemp, fd, sa, this.timingWheel, this.options.IdleTime)
 	if err != nil{
 		log.Errorf("failure to create new connection; error[%v]", err)
 		return

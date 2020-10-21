@@ -20,7 +20,7 @@ func(this *HandleEventImpl)ConnectCallback(c *tcpconnect.TcpConnect){
 }
 
 func(this *HandleEventImpl)MessageCallback(c *tcpconnect.TcpConnect, r *ringbuffer.RingBuffer){
-	fmt.Printf("connect:[%s] send message[%s]", c.PeerAddr(), r.String())
+	fmt.Printf("connect:[%s] send message[%s]", c.PeerAddr(), r.PrintRingBufferInfo())
 }
 
 func(this *HandleEventImpl)WriteCompletCallback(c *tcpconnect.TcpConnect){

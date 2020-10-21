@@ -27,14 +27,3 @@ func (this *TcpConnect) closeTimeoutConn() func() {
 }   
    
    
-                drawin kqueue
-  ring buffer
-  time task
-   
-  compare standard net/others
-  
-  unit test
-  简化loop
-   
-  ci/cd
-   

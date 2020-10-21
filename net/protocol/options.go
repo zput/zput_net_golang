@@ -21,6 +21,14 @@ func(this *Options)GetNet() NetWorkAndAddressAndOption {
 	return this.net
 }
 
+func(this *Options)GetTick() time.Duration {
+	return this.tick
+}
+
+func(this *Options)GetWheelSize() int64 {
+	return this.wheelSize
+}
+
 func NewOptions(opt ...Option) *Options {
 	opts := Options{}
 

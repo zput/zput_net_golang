@@ -3,6 +3,7 @@ module github.com/zput/zput_net_golang
 go 1.13
 
 require (
+	github.com/RussellLuo/timingwheel v0.0.0-20200910091656-e3b03158e91e
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/libp2p/go-reuseport v0.0.1
