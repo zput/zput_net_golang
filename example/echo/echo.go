@@ -72,7 +72,7 @@ func main() {
 
 	log.Info("created tcpserver successful")
 
-	s.RunEvery(time.Second*2, func() {
+	s.RunEvery(time.Second*20, func() {
 		log.Info("connections :", handler.connectTimes)
 	})
 

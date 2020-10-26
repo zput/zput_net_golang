@@ -46,6 +46,7 @@ type TcpConnect struct {
 	idleTime    time.Duration
 	activeTime  protocol.Int64
 	timingWheel *timingwheel.TimingWheel
+	temporaryBuf []byte
 }
 
 var ErrConnectionClosed = errors.New("connection closed")
@@ -53,15 +54,20 @@ var ErrConnectionClosed = errors.New("connection closed")
 // New 创建 Connection
 func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration,) (*TcpConnect, error) {
 	var tcpConnection = TcpConnect{
-		loop: loop,
-		fd:          fd,
-		peerAddr:    sockAddrToString(sa),
-		outBuffer:   pool.Get(),
-		inBuffer:    pool.Get(),
-		state: Disconnected,
-		idleTime:    idleTime,
-		timingWheel: tw,
+		loop:loop,
+		fd:fd,
+		peerAddr:sockAddrToString(sa),
+		outBuffer:pool.Get(),
+		inBuffer:pool.Get(),
+		state:Disconnected,
+		idleTime:idleTime,
+		timingWheel:tw,
+		temporaryBuf:make([]byte, 0xFFFF),
 	}
+
+	tcpConnection.outBuffer.RetrieveAll()
+	tcpConnection.inBuffer.RetrieveAll()
+
 	var(
 		err error
 	)
@@ -87,9 +93,9 @@ func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.T
 	}
 
 	tcpConnection.event.SetReadFunc(tcpConnection.readEvent)
-	tcpConnection.event.SetCloseFunc(tcpConnection.readEvent)
-	tcpConnection.event.SetWriteFunc(tcpConnection.readEvent)
-	tcpConnection.event.SetErrorFunc(tcpConnection.readEvent)
+	tcpConnection.event.SetCloseFunc(tcpConnection.closeEvent)
+	tcpConnection.event.SetWriteFunc(tcpConnection.writeEvent)
+	tcpConnection.event.SetErrorFunc(tcpConnection.errEvent)
 
 	return &tcpConnection, nil
 }
@@ -167,8 +173,7 @@ func (this *TcpConnect) ConnectedHandle() {
 func (this *TcpConnect) readEvent() {
 	this.updateActivityTime()
 
-	buf := make([]byte, 0xFFFF)
-	n, err := unix.Read(this.fd, buf)
+	n, err := unix.Read(this.fd, this.temporaryBuf)
 	if n == 0 || err != nil {
 		if err != unix.EAGAIN {
 			// TODO zxc
@@ -177,12 +182,12 @@ func (this *TcpConnect) readEvent() {
 		return
 	}
 	if n > 0{
-		_, _ = this.inBuffer.Write(buf[:n])
+		_, _ = this.inBuffer.Write(this.temporaryBuf[:n])
 		this.messageCallback(this, this.inBuffer)
 	}
 }
 
-func (this *TcpConnect) writeEvent(fd int) {
+func (this *TcpConnect) writeEvent() {
 	this.updateActivityTime()
 
 	first, end := this.outBuffer.PeekAll()
@@ -208,8 +213,7 @@ func (this *TcpConnect) writeEvent(fd int) {
 		this.outBuffer.Retrieve(n)
 	}
 
-	if this.outBuffer.Size() == 0 {
-		log.Info("[close write]")
+	if (len(first)!=0||len(end)!=0) && this.outBuffer.Size() == 0 {
 		this.event.EnableWriting(false)
 
 		//回调写完成函数
@@ -220,7 +224,7 @@ func (this *TcpConnect) writeEvent(fd int) {
 }
 
 func (this *TcpConnect) Write(data []byte) {
-	if this.outBuffer.Size() > 0 {
+	if !this.outBuffer.IsEmpty(){
 		_, _ = this.outBuffer.Write(data)
 	} else {
 		n, err := unix.Write(this.fd, data)

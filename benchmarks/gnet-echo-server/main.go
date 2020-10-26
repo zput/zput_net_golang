@@ -1,51 +1,50 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"log"
-	"strings"
+"flag"
+"fmt"
+"log"
 
-	"github.com/panjf2000/gnet"
-	"github.com/panjf2000/gnet/ringbuffer"
+"github.com/panjf2000/gnet"
 )
 
-func main() {
-	var port int
-	var loops int
-	var udp bool
-	var trace bool
-	var reuseport bool
+type echoServer struct {
+	*gnet.EventServer
+}
 
-	flag.IntVar(&port, "port", 5000, "server port")
-	flag.BoolVar(&udp, "udp", false, "listen on udp")
-	flag.BoolVar(&reuseport, "reuseport", false, "reuseport (SO_REUSEPORT)")
-	flag.BoolVar(&trace, "trace", false, "print packets to console")
+func (es *echoServer) OnInitComplete(srv gnet.Server) (action gnet.Action) {
+	log.Printf("Echo server is listening on %s (multi-cores: %t, loops: %d)\n",
+		srv.Addr.String(), srv.Multicore, srv.NumEventLoop)
+	return
+}
+
+func (es *echoServer) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
+	// Echo synchronously.
+	out = frame
+	return
+
+	/*
+	   // Echo asynchronously.
+	   data := append([]byte{}, frame...)
+	   go func() {
+	       time.Sleep(time.Second)
+	       c.AsyncWrite(data)
+	   }()
+	   return
+	*/
+}
+
+func main() {
+	var loops int
+	var port int
+	var multicore, reuseport bool
+
+	// Example command: go run echo.go --port 9000 --multicore=true --reuseport=true
+	flag.IntVar(&port, "port", 9000, "--port 9000")
+	flag.BoolVar(&multicore, "multicore", false, "--multicore true")
+	flag.BoolVar(&reuseport, "reuseport", false, "--reuseport true")
 	flag.IntVar(&loops, "loops", -1, "num loops")
 	flag.Parse()
-
-	var events gnet.Events
-	events.NumLoops = loops
-	events.OnInitComplete = func(srv gnet.Server) (action gnet.Action) {
-		log.Printf("echo server started on port %d (loops: %d)", port, srv.NumLoops)
-		if reuseport {
-			log.Printf("reuseport")
-		}
-		return
-	}
-	events.React = func(c gnet.Conn, inBuf *ringbuffer.RingBuffer) (out []byte, action gnet.Action) {
-		top, tail := inBuf.PreReadAll()
-		out = append(top, tail...)
-		inBuf.Reset()
-
-		if trace {
-			log.Printf("%s", strings.TrimSpace(string(top)+string(tail)))
-		}
-		return
-	}
-	scheme := "tcp"
-	if udp {
-		scheme = "udp"
-	}
-	log.Fatal(gnet.Serve(events, fmt.Sprintf("%s://:%d", scheme, port)))
+	echo := new(echoServer)
+	log.Fatal(gnet.Serve(echo, fmt.Sprintf("tcp://:%d", port), gnet.WithMulticore(multicore), gnet.WithReusePort(reuseport), gnet.WithNumEventLoop(loops)))
 }

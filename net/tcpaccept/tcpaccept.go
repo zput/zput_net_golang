@@ -62,7 +62,7 @@ func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop)
 }
 
 func (this *TcpAccept)Listen()error{
-	log.Debugf("enable reading; in tcp accept activity; event[%+v]", this.event)
+	log.Debugf("enable reading; in tcp accept activity; FD(%d)", this.event.GetFd())
 	return this.event.EnableReading(true)
 }
 

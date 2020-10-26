@@ -112,19 +112,20 @@ func (this *Multiplex) kEvents(old protocol.EventType, new protocol.EventType, f
 // Poll 启动 kqueue 循环
 func (this *Multiplex) WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, timeMs int) {
 
-	var timeOut = unix.Timespec{
-		Sec: int64(timeMs/1000),
-		Nsec: 0,
-	}
+	//var timeOut = unix.Timespec{
+	//	Sec: int64(timeMs/1000),
+	//	Nsec: 0,
+	//}
 
 	var wake bool
-	n, err := unix.Kevent(this.fd, nil, this.waitEvents, &timeOut)
+	//n, err := unix.Kevent(this.fd, nil, this.waitEvents, &timeOut)
+	n, err := unix.Kevent(this.fd, nil, this.waitEvents, nil)
 	if err != nil && err != unix.EINTR {
 		log.Errorf("EpollWait; error[%v]", err)
 		return
 	}
 
-	log.Debugf("in wait event; %d happened", n)
+	//log.Debugf("in wait event; %d happened", n)
 
 	for i := 0; i < n; i++ {
 		fd := int(this.waitEvents[i].Ident)
@@ -147,6 +148,7 @@ func (this *Multiplex) WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, t
 	}
 
 	if wake {
+		log.Debug("i'm wake")
 		embedHandler(-1, 0)
 		wake = false
 	}

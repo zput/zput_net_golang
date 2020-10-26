@@ -54,15 +54,7 @@ func (this *EventCtrl)RemoveEventFd(fd int)error{
 }
 
 func (this *EventCtrl)ModifyEvent(event *event.Event)error{
-	_, ok := this.eventPool[event.GetFd()]
-	if ok {
-		// not exist
-		return this.multi.ModifyEvent(event)
-	}
-	// TODO warn
-	log.Error("EventCtrl.ModifyEvent; can't find this fd[%d] in eventPool", event.GetFd())
-	return nil
-	// if it is already exist, don't need to modify epoll etc.
+	return this.multi.ModifyEvent(event)
 }
 
 func (this *EventCtrl)WaitAndRunHandle(PollTimeMs int){
@@ -71,15 +63,16 @@ func (this *EventCtrl)WaitAndRunHandle(PollTimeMs int){
 
 func (this *EventCtrl) handlerEventWrap(fd int, eventType protocol.EventType) {
 	//this.eventHandling.Set(true)
-
 	if fd != -1 {
-		event, ok := this.eventPool[fd]
-		if ok {
-			event.HandleEvent(eventType)
-		}else{
-			this.RemoveEventFd(fd)
+		tempEvent := this.eventPool[fd]
+		switch {
+		case tempEvent == nil:
+			if err := this.RemoveEventFd(fd); err != nil{
+				log.Errorf("EventCtrl.RemoveEventFd error; error[%v]",err)
+			}
+		default:
+			tempEvent.HandleEvent(eventType)
 		}
 	}
-
 	//l.eventHandling.Set(false)
 }

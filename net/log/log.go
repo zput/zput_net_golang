@@ -29,6 +29,22 @@ const (
 	LevelDebug
 )
 
+func (this *Level)String()string{
+	switch *this {
+	case LevelFatal:
+		return "[F]"
+	case LevelError:
+		return "[E]"
+	case LevelWarn:
+		return "[W]"
+	case LevelInfo:
+		return "[I]"
+	case LevelDebug:
+		return "[D]"
+	}
+	return ""
+}
+
 var (
 	// the local logger
 	logger Logger = &defaultLogLogger{}
@@ -68,18 +84,18 @@ func init() {
 }
 
 // Log makes use of Logger
-func Log(v ...interface{}) {
+func Log(l Level, v ...interface{}) {
 	if len(prefix) > 0 {
-		logger.Log(append([]interface{}{prefix, " "}, v...)...)
+		logger.Log(append([]interface{}{prefix, " ", l.String(), " "}, v...)...)
 		return
 	}
 	logger.Log(v...)
 }
 
 // Logf makes use of Logger
-func Logf(format string, v ...interface{}) {
+func Logf(l Level, format string, v ...interface{}) {
 	if len(prefix) > 0 {
-		format = prefix + " " + format
+		format = prefix + " " + l.String() + " " + format
 	}
 	logger.Logf(format, v...)
 }
@@ -89,7 +105,7 @@ func WithLevel(l Level, v ...interface{}) {
 	if l > level {
 		return
 	}
-	Log(v...)
+	Log(l, v...)
 }
 
 // WithLevelf logs with the level specified
@@ -97,7 +113,7 @@ func WithLevelf(l Level, format string, v ...interface{}) {
 	if l > level {
 		return
 	}
-	Logf(format, v...)
+	Logf(l, format, v...)
 }
 
 // Debug provides debug level logging
@@ -118,6 +134,16 @@ func Info(v ...interface{}) {
 // Infof provides info level logging
 func Infof(format string, v ...interface{}) {
 	WithLevelf(LevelInfo, format, v...)
+}
+
+// Warn provides warn level logging
+func Warn(v ...interface{}) {
+	WithLevel(LevelWarn, v...)
+}
+
+// Warnf provides warn level logging
+func Warnf(format string, v ...interface{}) {
+	WithLevelf(LevelWarn, format, v...)
 }
 
 // Error provides warn level logging

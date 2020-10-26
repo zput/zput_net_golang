@@ -20,6 +20,7 @@ $(pkill -9 evio-echo-server || printf "")
 $(pkill -9 eviop-echo-server || printf "")
 $(pkill -9 zput_net_golang-echo-server || printf "")
 $(pkill -9 gnet-echo-server || printf "")
+$(pkill -9 gev-echo-server || printf "")
 
 function gobench {
     echo "--- $1 ---"
@@ -35,7 +36,8 @@ function gobench {
     echo ""
 }
 
-gobench "GEV"  bin/zput_net_golang-echo-server ../example/echo/echo.go 5000
+gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 5000
+gobench "GEV" bin/gev-echo-server gev-echo-server/main.go 5010
 gobench "GNET" bin/gnet-echo-server gnet-echo-server/main.go 5001
 gobench "EVIOP" bin/eviop-echo-server eviop-echo-server/main.go 5002
 gobench "EVIO" bin/evio-echo-server evio-echo-server/main.go 5003

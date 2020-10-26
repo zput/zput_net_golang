@@ -141,7 +141,8 @@ func(this *Multiplex)WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, tim
 		log.Errorf("unix.EpollWait error[%v] ", err)
 		return
 	}
-	log.Debugf("in wait event; %d happened", n)
+
+	//log.Debugf("in wait event; %d happened", n)
 
 	for i := 0; i < n; i++ {
 		fd := int(this.waitEvents[i].Fd)
