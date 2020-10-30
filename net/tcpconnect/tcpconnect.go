@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/RussellLuo/timingwheel"
-	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/ringbuffer"
 	"github.com/zput/ringbuffer/pool"
 	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/event_loop"
+	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"golang.org/x/sys/unix"
 	"net"
@@ -85,12 +85,12 @@ func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.T
 
 	//设置Tcp Accept event.
 	tcpConnection.event = event.New(loop, fd)
-	//将这个accept event添加到loop，给多路复用监听。
-	err = tcpConnection.loop.AddEvent(tcpConnection.event)
-	if err != nil{
-		log.Error("creating tcpConnect failure; AddEvent; error[%v]", err)
-		return nil, err
-	}
+	////将这个accept event添加到loop，给多路复用监听。
+	//err = tcpConnection.loop.AddEvent(tcpConnection.event)
+	//if err != nil{
+	//	log.Error("creating tcpConnect failure; AddEvent; error[%v]", err)
+	//	return nil, err
+	//}
 
 	tcpConnection.event.SetReadFunc(tcpConnection.readEvent)
 	tcpConnection.event.SetCloseFunc(tcpConnection.closeEvent)
@@ -145,9 +145,17 @@ func (this *TcpConnect) SetWriteCompleteCallback(writeCompletCallback OnWriteCom
 	this.writeCompleteCallback = writeCompletCallback
 }
 
-func (this *TcpConnect) ConnectedHandle() {
+func (this *TcpConnect) ConnectedHandle()(err error){
+
+	//将这个accept event添加到loop，给多路复用监听。
+	err = this.loop.AddEvent(this.event)
+	if err != nil{
+		log.Error("creating tcpConnect failure; AddEvent; error[%v]", err)
+		return err
+	}
+
 	this.state = Connected
-	this.event.EnableReading(true)
+	err = this.event.EnableReading(true)
 	//epoll为电平触发
 	/*
 	LT 电平触发    高电平触发
@@ -167,7 +175,8 @@ func (this *TcpConnect) ConnectedHandle() {
 	*/
 
 	//event->enableWriting(true);
-	this.event.EnableErrorEvent(true)
+	err = this.event.EnableErrorEvent(true)
+	return
 }
 
 func (this *TcpConnect) readEvent() {
@@ -177,6 +186,7 @@ func (this *TcpConnect) readEvent() {
 	if n == 0 || err != nil {
 		if err != unix.EAGAIN {
 			// TODO zxc
+			log.Errorf("fd[%d] readEvent error[%v]", this.fd, err)
 			this.closeEvent()
 		}
 		return
@@ -213,8 +223,10 @@ func (this *TcpConnect) writeEvent() {
 		this.outBuffer.Retrieve(n)
 	}
 
-	if (len(first)!=0||len(end)!=0) && this.outBuffer.Size() == 0 {
-		this.event.EnableWriting(false)
+	if this.outBuffer.Size() == 0 {
+		if this.event.IsWriting() == true{
+			this.event.EnableWriting(false)
+		}
 
 		//回调写完成函数
 		if this.writeCompleteCallback != nil{
@@ -235,14 +247,12 @@ func (this *TcpConnect) Write(data []byte) {
 			this.closeEvent()
 			return
 		}
-		if n == 0 {
-			_, _ = this.outBuffer.Write(data)
-		} else if n < len(data) {
+		if n < len(data) {
 			_, _ = this.outBuffer.Write(data[n:])
-		}
 
-		if this.outBuffer.Size() > 0 {
-			this.event.EnableWriting(true)
+			if this.outBuffer.Size() > 0 {
+				this.event.EnableWriting(true)
+			}
 		}
 	}
 }

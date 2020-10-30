@@ -3,19 +3,18 @@
 package multiplex
 
 import (
-	"errors"
 	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"golang.org/x/sys/unix"
-	"sync"
 )
 
 // Multiplex Kqueue封装
 type Multiplex struct {
 	fd         int // Kqueue fd
 	waitEvents []unix.Kevent_t
-	sockets    sync.Map // [fd]protocol.EventType
+	//sockets    sync.Map // [fd]protocol.EventType
+	changes []unix.Kevent_t
 }
 
 func New() (*Multiplex, error) {
@@ -46,44 +45,25 @@ func (this *Multiplex) Close() (err error) {
 }
 
 func (this *Multiplex) AddEvent(ioEvent *event.Event) error {
-	log.Debugf("AddEvent; ioEvent; fd:%v, eventType:%v", ioEvent.GetFd(), ioEvent.GetEvents())
-
-	this.sockets.Store(ioEvent.GetFd(), ioEvent.GetEvents())
+	log.Debugf("AddEvent; ioEvent; fd:%v, eventType:%v, oldEventType:%v", ioEvent.GetFd(), ioEvent.GetEvents(), ioEvent.GetOldEvents())
 	kEvents := this.kEvents(protocol.EventNone, ioEvent.GetEvents(), ioEvent.GetFd())
-	_, err := unix.Kevent(this.fd, kEvents, nil, nil)
-	return err
+	this.changes = append(this.changes, kEvents...)
+	return nil
 }
 
 func (this *Multiplex) RemoveEvent(ioEvent *event.Event) error {
-	return this.RemoveEventFd(ioEvent.GetFd())
-}
-
-func (this *Multiplex) RemoveEventFd(fd int) error {
-	v, ok := this.sockets.Load(fd)
-	if !ok {
-		return errors.New("sync map load error")
-	}
-
-	kEvents := this.kEvents(v.(protocol.EventType), protocol.EventNone, fd)
-	_, err := unix.Kevent(this.fd, kEvents, nil, nil)
-	if err != nil {
-		this.sockets.Delete(fd)
-	}
-	return err
+	kEvents := this.kEvents(ioEvent.GetOldEvents(), protocol.EventNone, ioEvent.GetFd())
+	this.changes = append(this.changes, kEvents...)
+	//log.Debugf("%+v", this.changes)
+	return nil
 }
 
 func (this *Multiplex) ModifyEvent(ioEvent *event.Event) error {
-	oldEvents, ok := this.sockets.Load(ioEvent.GetFd())
-	if !ok {
-		return errors.New("sync map load error")
-	}
-
-	kEvents := this.kEvents(oldEvents.(protocol.EventType), ioEvent.GetEvents(), ioEvent.GetFd())
-	_, err := unix.Kevent(this.fd, kEvents, nil, nil)
-	if err != nil {
-		this.sockets.Store(ioEvent.GetFd(), ioEvent.GetEvents())
-	}
-	return err
+	log.Debugf("ModifyEvent; ioEvent; fd:%v, eventType:%v, oldEventType:%v", ioEvent.GetFd(), ioEvent.GetEvents(), ioEvent.GetOldEvents())
+	kEvents := this.kEvents(ioEvent.GetOldEvents(), ioEvent.GetEvents(), ioEvent.GetFd())
+	this.changes = append(this.changes, kEvents...)
+	//log.Debugf("length[%d]; %+v", len(this.changes), this.changes)
+	return nil
 }
 
 func (this *Multiplex) kEvents(old protocol.EventType, new protocol.EventType, fd int) (ret []unix.Kevent_t) {
@@ -112,18 +92,23 @@ func (this *Multiplex) kEvents(old protocol.EventType, new protocol.EventType, f
 // Poll 启动 kqueue 循环
 func (this *Multiplex) WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, timeMs int) {
 
-	//var timeOut = unix.Timespec{
-	//	Sec: int64(timeMs/1000),
-	//	Nsec: 0,
-	//}
+	var timeOut = unix.Timespec{
+		Sec: int64(timeMs/1000),
+		Nsec: 0,
+	}
 
+	//log.Debugf("kqueue change,length[%v], %+v", len(this.changes), this.changes)
 	var wake bool
 	//n, err := unix.Kevent(this.fd, nil, this.waitEvents, &timeOut)
-	n, err := unix.Kevent(this.fd, nil, this.waitEvents, nil)
+	n, err := unix.Kevent(this.fd, this.changes, this.waitEvents, &timeOut)
 	if err != nil && err != unix.EINTR {
 		log.Errorf("EpollWait; error[%v]", err)
 		return
 	}
+
+	// TODO slice
+	this.changes = this.changes[:0]
+	//this.changes = nil
 
 	//log.Debugf("in wait event; %d happened", n)
 
@@ -132,6 +117,7 @@ func (this *Multiplex) WaitEvent(embedHandler protocol.EmbedHandler2Multiplex, t
 		if fd != 0 {
 			var rEvents protocol.EventType
 			if (this.waitEvents[i].Flags&unix.EV_ERROR != 0) || (this.waitEvents[i].Flags&unix.EV_EOF != 0) {
+				//log.Error("EV_ERR")
 				rEvents |= protocol.EventErr
 			}
 			if this.waitEvents[i].Filter == unix.EVFILT_WRITE {

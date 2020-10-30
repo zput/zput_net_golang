@@ -9,6 +9,7 @@ import (
 )
 
 type EventLoop struct{
+	SequenceID int
 	eventCtrl * event_ctrl.EventCtrl
 
 	// TODO wait add, remove, delete.
@@ -19,8 +20,9 @@ type EventLoop struct{
 	waitDone chan struct{}
 }
 
-func New()(*EventLoop, error){
+func New(sequenceID int)(*EventLoop, error){
 	var loop = EventLoop{
+		SequenceID: sequenceID,
 		functions:make([]protocol.AddFunToLoopWaitingRun, 0),
 		waitDone:make(chan struct{}),
 	}
@@ -89,4 +91,17 @@ func (this *EventLoop)runAllFunctionInLoop(){
 		this.functions[i]()
 	}
 	this.functions = nil
+}
+
+func(this *EventLoop)RunInLoop(fun protocol.AddFunToLoopWaitingRun){
+	this.mutex.Lock()
+	defer this.mutex.Unlock()
+
+	this.functions = append(this.functions, fun)
+	_ = this.wake()
+	return
+}
+
+func (this *EventLoop)wake()error{
+	return this.eventCtrl.Wake()
 }

@@ -17,4 +17,3 @@ func (w *WaitGroupWrapper) AddAndRun(cb func()) {
 func (w *WaitGroupWrapper) Wait() {
 	w.wg.Wait()
 }
-

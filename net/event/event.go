@@ -11,7 +11,9 @@ type ILoopOperatorEvent interface {
 
 type Event struct{
 	eventFd int
+
 	events protocol.EventType
+	oldEvents protocol.EventType
 
 	eventLoopImp ILoopOperatorEvent
 
@@ -30,6 +32,9 @@ func New(eventLoopImp ILoopOperatorEvent, eventFd int)*Event{
 }
 
 func (this *Event)EnableReading(isEnable bool)error{
+	// save to old events
+	this.oldEvents = this.events
+
 	if isEnable{
 		this.events |= protocol.EventRead
 	}else{
@@ -39,6 +44,9 @@ func (this *Event)EnableReading(isEnable bool)error{
 }
 
 func (this *Event)EnableWriting(isEnable bool)error{
+	// save to old events
+	this.oldEvents = this.events
+
 	if isEnable{
 		this.events |= protocol.EventWrite
 	}else{
@@ -48,6 +56,9 @@ func (this *Event)EnableWriting(isEnable bool)error{
 }
 
 func (this *Event)EnableErrorEvent(isEnable bool)error{
+	// save to old events
+	this.oldEvents = this.events
+
 	if isEnable{
 		this.events |= protocol.EventErr
 	}else{
@@ -57,6 +68,9 @@ func (this *Event)EnableErrorEvent(isEnable bool)error{
 }
 
 func (this *Event)DisableAll()error{
+	// save to old events
+	this.oldEvents = this.events
+
 	this.events = protocol.EventNone
 	return this.update()
 }
@@ -68,7 +82,7 @@ func (this *Event)IsWriting()bool{
 	return true
 }
 
-func (this *Event)isReading()bool{
+func (this *Event)IsReading()bool{
 	if this.events & protocol.EventRead == protocol.EventNone{
 		return false
 	}
@@ -83,6 +97,11 @@ func (this *Event)GetEvents()protocol.EventType{
 	return this.events
 }
 
+func (this *Event)GetOldEvents()protocol.EventType{
+	return this.oldEvents
+}
+
+// todo
 func(this *Event)SetReadFunc(function protocol.DefaultFunction){
 	this.readHandle = function
 }

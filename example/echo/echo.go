@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/zput/ringbuffer"
-	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"github.com/zput/zput_net_golang/net/tcpconnect"
@@ -56,13 +55,8 @@ func main() {
 	flag.Parse()
 
 	log.Info("server begin")
-	mainLoopPtr, err := event_loop.New()
-	if err != nil {
-		log.Error(err)
-	}
-	log.Info("created event_loop successful")
 
-	s, err := tcpserver.New(handler, mainLoopPtr,
+	s, err := tcpserver.New(handler,
 		protocol.Network("tcp"),
 		protocol.Address(":"+strconv.Itoa(port)),
 		protocol.NumLoops(loops))

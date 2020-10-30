@@ -8,13 +8,12 @@ import (
 )
 
 type EventCtrl struct{
+	/*
+	   todo: 这个eventPoll 需要进行加锁？ 还有其他的goroutine对它进行了操作？
+	*/
 	eventPool map[int]*event.Event
 	multi *multiplex.Multiplex
 }
-
-/*
-todo: 这个eventPoll 需要进行加锁？ 还有其他的goroutine对它进行了操作？
-*/
 
 func New()(*EventCtrl, error){
 	var eventCtrl EventCtrl
@@ -45,14 +44,6 @@ func (this *EventCtrl)RemoveEvent(event *event.Event)error{
 	return this.multi.RemoveEvent(event)
 }
 
-func (this *EventCtrl)RemoveEventFd(fd int)error{
-	_, ok := this.eventPool[fd]
-	if ok {
-		delete(this.eventPool, fd)
-	}
-	return this.multi.RemoveEventFd(fd)
-}
-
 func (this *EventCtrl)ModifyEvent(event *event.Event)error{
 	return this.multi.ModifyEvent(event)
 }
@@ -67,12 +58,16 @@ func (this *EventCtrl) handlerEventWrap(fd int, eventType protocol.EventType) {
 		tempEvent := this.eventPool[fd]
 		switch {
 		case tempEvent == nil:
-			if err := this.RemoveEventFd(fd); err != nil{
-				log.Errorf("EventCtrl.RemoveEventFd error; error[%v]",err)
-			}
+			//if err := this.RemoveEventFd(fd); err != nil{
+			//	log.Errorf("EventCtrl.RemoveEventFd error; error[%v]",err)
+			//}
 		default:
 			tempEvent.HandleEvent(eventType)
 		}
 	}
 	//l.eventHandling.Set(false)
+}
+
+func (this *EventCtrl)Wake()error{
+	return this.multi.Wake()
 }
