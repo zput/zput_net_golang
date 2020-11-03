@@ -4,7 +4,7 @@ package multiplex
 
 import (
 	"github.com/zput/zput_net_golang/net/log"
-	"github.com/zput/zput_net_golang/net/event"
+	""
 	"github.com/zput/zput_net_golang/net/protocol"
 	"golang.org/x/sys/unix"
 )
@@ -97,7 +97,7 @@ func(this *Multiplex)epollCtrl(op int, fd int, eventType protocol.EventType)erro
 	return unix.EpollCtl(this.fd, op, fd, &epollEvent)
 }
 
-func(this *Multiplex) AddEvent(ioEvent *event.Event)error{
+func(this *Multiplex) AddEvent(ioEvent *event_loop.Event)error{
 	log.Debugf("AddEvent; ioEvent; fd:%v, eventType:%v", ioEvent.GetFd(), ioEvent.GetEvents())
 	if err := this.epollCtrl(unix.EPOLL_CTL_ADD, ioEvent.GetFd(), ioEvent.GetEvents()); err != nil{
 		log.Errorf("add epoll error[%v]", err)
@@ -106,7 +106,7 @@ func(this *Multiplex) AddEvent(ioEvent *event.Event)error{
 	return nil
 }
 
-func(this *Multiplex) RemoveEvent(ioEvent *event.Event)error{
+func(this *Multiplex) RemoveEvent(ioEvent *event_loop.Event)error{
 	if err := this.epollCtrl(unix.EPOLL_CTL_DEL, ioEvent.GetFd(), ioEvent.GetEvents()); err != nil{
 		log.Error("remove epoll error[%v]", err)
 		return err
@@ -122,7 +122,7 @@ func(this *Multiplex) RemoveEventFd(fd int)error{
 	return nil
 }
 
-func(this *Multiplex) ModifyEvent(ioEvent *event.Event)error{
+func(this *Multiplex) ModifyEvent(ioEvent *event_loop.Event)error{
 	log.Debugf("ModifyEvent; ioEvent; fd:%v, eventType:%v", ioEvent.GetFd(), ioEvent.GetEvents())
 	if err := this.epollCtrl(unix.EPOLL_CTL_MOD, ioEvent.GetFd(), ioEvent.GetEvents()); err != nil{
 		log.Error("modify epoll error[%v]", err)

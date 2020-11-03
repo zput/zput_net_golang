@@ -164,9 +164,8 @@ func (this *TcpServer) newConnected(fd int, sa unix.Sockaddr){
 			c.Close()
 			this.removeConnect(c.PeerAddr())
 		}
+		this.handleEvent.ConnectCallback(c)
 	})
-
-	this.handleEvent.ConnectCallback(c)
 }
 
 func (this *TcpServer) getOneLoopFromPool() *event_loop.EventLoop {

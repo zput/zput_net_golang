@@ -2,15 +2,13 @@ package event_loop
 
 import (
 	"github.com/zput/zput_net_golang/net/log"
-	"github.com/zput/zput_net_golang/net/event"
-	"github.com/zput/zput_net_golang/net/event_ctrl"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"sync"
 )
 
 type EventLoop struct{
 	SequenceID int
-	eventCtrl * event_ctrl.EventCtrl
+	eventCtrl * EventCtrl
 
 	// TODO wait add, remove, delete.
 	functions []protocol.AddFunToLoopWaitingRun
@@ -28,7 +26,7 @@ func New(sequenceID int)(*EventLoop, error){
 	}
 	var err error
 	// 不-让eventCtrl反向关联这个
-	loop.eventCtrl, err = event_ctrl.New()
+	loop.eventCtrl, err = NewEventCtrl()
 	if err != nil{
 		log.Errorf("create eventCtrl error[%v]; in EventLoop", err)
 		return nil, err
@@ -62,35 +60,39 @@ func (this *EventLoop)Stop()error{
 	return this.eventCtrl.Stop()
 }
 
-func (this *EventLoop)AddEvent(event *event.Event)error{
+func (this *EventLoop)AddEvent(event *Event)error{
 	return this.eventCtrl.AddEvent(event)
 }
 
-func (this *EventLoop)RemoveEvent(event *event.Event)error{
+func (this *EventLoop)RemoveEvent(event *Event)error{
 	return this.eventCtrl.RemoveEvent(event)
 }
 
-func (this *EventLoop)ModifyEvent(event *event.Event)error{
+func (this *EventLoop)ModifyEvent(event *Event)error{
 	return this.eventCtrl.ModifyEvent(event)
 }
 
-func(this *EventLoop)AddFunInLoop(fun protocol.AddFunToLoopWaitingRun){
-	this.mutex.Lock()
-	defer this.mutex.Unlock()
-
-	this.functions = append(this.functions, fun)
-}
+//func(this *EventLoop)AddFunInLoop(fun protocol.AddFunToLoopWaitingRun){
+//	this.mutex.Lock()
+//	defer this.mutex.Unlock()
+//
+//	this.functions = append(this.functions, fun)
+//}
 
 func (this *EventLoop)runAllFunctionInLoop(){
 	// TODO ?这里有race，来自于TcpAccept
 	// 难道是因为只要谁得到这个loop就可以添加带运行的闭包函数放入其中，所以有race。
-	this.mutex.Lock()
-	defer this.mutex.Unlock()
 
-	for i:=0;i<len(this.functions);i++{
-		this.functions[i]()
+	var functionsTemp []protocol.AddFunToLoopWaitingRun
+	{
+		this.mutex.Lock()
+		functionsTemp = this.functions
+		this.functions = nil
+		this.mutex.Unlock()
 	}
-	this.functions = nil
+	for i:=0;i<len(functionsTemp);i++{
+		functionsTemp[i]()
+	}
 }
 
 func(this *EventLoop)RunInLoop(fun protocol.AddFunToLoopWaitingRun){

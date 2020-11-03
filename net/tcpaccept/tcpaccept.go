@@ -3,7 +3,6 @@ package tcpaccept
 import (
 	"errors"
 	"github.com/zput/zput_net_golang/net/log"
-	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"net"
@@ -19,7 +18,7 @@ type TcpAccept struct {
 	aCopyOfTheUnderlyingOsFile *os.File
 	loop                       *event_loop.EventLoop
 	newConnectCallback         protocol.OnNewConnectCallback
-	event                      *event.Event
+	event                      *event_loop.Event
 }
 
 // New 创建Listener
@@ -47,8 +46,8 @@ func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop)
 		return nil, err
 	}
 	log.Debugf("created listen fd[%d]; in tcp accept", tcpAccept.Fd())
-	//新建Tcp Accept event.
-	tcpAccept.event = event.New(loop, tcpAccept.Fd())
+	//新建Tcp Accept event_loop.
+	tcpAccept.event = event_loop.NewEvent(loop, tcpAccept.Fd())
 	//将这个accept event添加到loop，给多路复用监听。
 	err = tcpAccept.loop.AddEvent(tcpAccept.event)
 	if err != nil{
@@ -68,15 +67,15 @@ func (this *TcpAccept)Listen()error{
 
 // Close TcpAccept
 func (this *TcpAccept) Close()error{
-	this.loop.AddFunInLoop(func() {
+	this.loop.RunInLoop(func() {
 		var err error
 		err = this.event.DisableAll()
 		if err != nil{
-			log.Errorf("close event.DisableAll; error[%v]", err)
+			log.Errorf("close event_loop.DisableAll; error[%v]", err)
 		}
-		err = this.event.RemoveFromLoop()
+		err = this.event.UnRegister()
 		if err != nil{
-			log.Errorf("close event.RemoveFromLoop; error[%v]", err)
+			log.Errorf("close event_loop.RemoveFromLoop; error[%v]", err)
 		}
 		if err := this.listener.Close(); err != nil {
 			log.Errorf("[Listener] close; error[%v] ", err)

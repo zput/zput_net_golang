@@ -6,7 +6,6 @@ import (
 	"github.com/RussellLuo/timingwheel"
 	"github.com/zput/ringbuffer"
 	"github.com/zput/ringbuffer/pool"
-	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
@@ -32,7 +31,7 @@ const(
 // Connection TCP 连接
 type TcpConnect struct {
 	loop                       *event_loop.EventLoop
-	event                      *event.Event
+	event                      *event_loop.Event
 	outBuffer *ringbuffer.RingBuffer // write buffer
 	inBuffer  *ringbuffer.RingBuffer // read buffer
 	messageCallback OnMessageCallback
@@ -83,8 +82,8 @@ func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.T
 		return nil, err
 	}
 
-	//设置Tcp Accept event.
-	tcpConnection.event = event.New(loop, fd)
+	//设置Tcp Accept event_loop.
+	tcpConnection.event = event_loop.NewEvent(loop, fd)
 	////将这个accept event添加到loop，给多路复用监听。
 	//err = tcpConnection.loop.AddEvent(tcpConnection.event)
 	//if err != nil{
@@ -106,7 +105,7 @@ func (this *TcpConnect) Close() error {
 		return ErrConnectionClosed
 	}
 
-	this.loop.AddFunInLoop(func() {
+	this.loop.RunInLoop(func() {
 		this.closeEvent()
 	})
 	return nil
@@ -269,7 +268,7 @@ func (this *TcpConnect) closeEvent() {
 		//在event中取消掉loop注册
 		//删除fd-event-loop
 		this.event.DisableAll()
-		this.event.RemoveFromLoop()
+		this.event.UnRegister()
 
 		// 这个是上层的责任，应该由上层来删除。这个TcpConnect与loop，fd的联系。
 		if this.connectCloseCallback != nil {
@@ -307,7 +306,7 @@ func (this *TcpConnect) WriteInSelfLoop(buffer []byte) error {
 		return ErrConnectionClosed
 	}
 
-	this.loop.AddFunInLoop(func() {
+	this.loop.RunInLoop(func() {
 		this.Write(buffer)
 	})
 	return nil

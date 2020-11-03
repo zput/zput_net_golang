@@ -1,13 +1,8 @@
-package event
+package event_loop
 
 import (
 	"github.com/zput/zput_net_golang/net/protocol"
 )
-
-type ILoopOperatorEvent interface {
-	ModifyEvent(event *Event)error
-	RemoveEvent(event *Event)error
-}
 
 type Event struct{
 	eventFd int
@@ -15,7 +10,7 @@ type Event struct{
 	events protocol.EventType
 	oldEvents protocol.EventType
 
-	eventLoopImp ILoopOperatorEvent
+	eventLoopImp *EventLoop
 
 	readHandle protocol.DefaultFunction
 	writeHandle protocol.DefaultFunction
@@ -23,12 +18,20 @@ type Event struct{
 	closeHandle protocol.DefaultFunction
 }
 
-func New(eventLoopImp ILoopOperatorEvent, eventFd int)*Event{
+func NewEvent(eventLoopImp *EventLoop, eventFd int)*Event{
 	var event = Event{
 		eventFd:eventFd,
 		eventLoopImp: eventLoopImp,
 	}
 	return &event
+}
+
+func (this *Event)Register()error{
+	return this.eventLoopImp.AddEvent(this)
+}
+
+func (this *Event)UnRegister()error{
+	return this.eventLoopImp.RemoveEvent(this)
 }
 
 func (this *Event)EnableReading(isEnable bool)error{
@@ -122,9 +125,6 @@ func (this *Event)update()error{
 	return this.eventLoopImp.ModifyEvent(this)
 }
 
-func (this *Event)RemoveFromLoop()error{
-	return this.eventLoopImp.RemoveEvent(this)
-}
 
 func (this *Event)HandleEvent(revents protocol.EventType){
 	if (revents & protocol.EventClose) != protocol.EventNone{

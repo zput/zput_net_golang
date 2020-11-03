@@ -33,5 +33,5 @@ function gobench {
     echo ""
 }
 
-gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 8001
+gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58001
 
