@@ -3,8 +3,8 @@ package net
 import (
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
-	"github.com/zput/zput_net_golang/net/tcpconnect"
-	"github.com/zput/zput_net_golang/net/tcpserver"
+	"github.com/zput/zput_net_golang/net/connect"
+	"github.com/zput/zput_net_golang/net/server"
 	"io"
 	"net"
 	"testing"
@@ -15,7 +15,7 @@ type example2 struct {
 	tcpserver.HandleEventImpl
 }
 
-func(this *example2)ConnectCallback(c *tcpconnect.Connect){
+func(this *example2)ConnectCallback(c *connect.Connect){
 	log.Infof("connect:[%s]", c.PeerAddr())
 	if err := c.Close(); err != nil {
 		panic(err)
@@ -23,11 +23,11 @@ func(this *example2)ConnectCallback(c *tcpconnect.Connect){
 	log.Infof("[%s], will close", c.PeerAddr())
 }
 
-func(this *example2)WriteCompletCallback(c *tcpconnect.Connect){
+func(this *example2)WriteCompletCallback(c *connect.Connect){
 	log.Infof("write complete:[%s]", c.PeerAddr())
 }
 
-func(this *example2)ConnectCloseCallback(c *tcpconnect.Connect){
+func(this *example2)ConnectCloseCallback(c *connect.Connect){
 	log.Infof("connect close:[%s]", c.PeerAddr())
 }
 

@@ -8,7 +8,7 @@ package tcpserver
 //
 //import (
 //	"github.com/zput/zput_net_golang/net/event_loop"
-//	"github.com/zput/zput_net_golang/net/tcpconnect"
+//	"github.com/zput/zput_net_golang/net/connect"
 //	"time"
 //
 //	"github.com/smartystreets-prototypes/go-disruptor"

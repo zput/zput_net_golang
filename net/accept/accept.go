@@ -1,4 +1,4 @@
-package tcpaccept
+package accept
 
 import (
 	"errors"

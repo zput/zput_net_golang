@@ -5,7 +5,7 @@ import (
 	"github.com/zput/ringbuffer"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
-	"github.com/zput/zput_net_golang/net/tcpconnect"
+	"github.com/zput/zput_net_golang/net/connect"
 	"github.com/zput/zput_net_golang/net/tcpserver"
 	"net/http"
 	_ "net/http/pprof"

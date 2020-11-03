@@ -1,4 +1,4 @@
-package tcpconnect
+package connect
 
 import (
 	"errors"

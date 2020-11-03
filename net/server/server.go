@@ -6,8 +6,8 @@ import (
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
-	"github.com/zput/zput_net_golang/net/tcpaccept"
-	"github.com/zput/zput_net_golang/net/tcpconnect"
+	"github.com/zput/zput_net_golang/net/accept"
+	"github.com/zput/zput_net_golang/net/connect"
 	"golang.org/x/sys/unix"
 	"runtime"
 	"time"
@@ -18,8 +18,8 @@ type Server struct{
 	handleEvent IHandleEvent
 	mainLoop *event_loop.EventLoop
 	subLoops []*event_loop.EventLoop
-	tcpAccept *tcpaccept.Accept
-	connectPool map[string]*tcpconnect.Connect
+	tcpAccept *accept.Accept
+	connectPool map[string]*connect.Connect
 	nextLoopIndex int
 
 	timingWheel *timingwheel.TimingWheel
@@ -38,13 +38,13 @@ func New(handleEvent IHandleEvent, opts ...protocol.Option)(*Server, error){
 		handleEvent:handleEvent,
 		mainLoop:mainLoop,
 		options:protocol.NewOptions(opts...),
-		connectPool:make(map[string]*tcpconnect.Connect),
+		connectPool:make(map[string]*connect.Connect),
 	}
 
 	tcpServer.timingWheel = timingwheel.NewTimingWheel(tcpServer.options.GetTick(), tcpServer.options.GetWheelSize())
 
 	//创建一个tcp accept
-	tcpServer.tcpAccept, err = tcpaccept.New(tcpServer.options.GetNet(), tcpServer.mainLoop)
+	tcpServer.tcpAccept, err = accept.New(tcpServer.options.GetNet(), tcpServer.mainLoop)
 	if err != nil{
 		log.Errorf("new accept error[%v]", err)
 		return nil, err
@@ -147,7 +147,7 @@ func (this *Server) RunEvery(d time.Duration, f func()) *timingwheel.Timer {
 func (this *Server) newConnected(fd int, sa unix.Sockaddr){
 	loopTemp := this.getOneLoopFromPool()
 
-	c, err := tcpconnect.New(loopTemp, fd, sa, this.timingWheel, this.options.IdleTime)
+	c, err := connect.New(loopTemp, fd, sa, this.timingWheel, this.options.IdleTime)
 	if err != nil{
 		log.Errorf("failure to create new connection; error[%v]", err)
 		return
@@ -175,12 +175,12 @@ func (this *Server) getOneLoopFromPool() *event_loop.EventLoop {
 	return loop
 }
 
-func (this *Server) connectCloseEvent(connect *tcpconnect.Connect){
+func (this *Server) connectCloseEvent(connect *connect.Connect){
 	this.handleEvent.ConnectCloseCallback(connect)
 	this.removeConnect(connect.PeerAddr())
 }
 
-func (this *Server) addConnect(name string, connect *tcpconnect.Connect) {
+func (this *Server) addConnect(name string, connect *connect.Connect) {
 	this.connectPool[name] = connect
 }
 
