@@ -15,7 +15,7 @@ type example2 struct {
 	tcpserver.HandleEventImpl
 }
 
-func(this *example2)ConnectCallback(c *tcpconnect.TcpConnect){
+func(this *example2)ConnectCallback(c *tcpconnect.Connect){
 	log.Infof("connect:[%s]", c.PeerAddr())
 	if err := c.Close(); err != nil {
 		panic(err)
@@ -23,11 +23,11 @@ func(this *example2)ConnectCallback(c *tcpconnect.TcpConnect){
 	log.Infof("[%s], will close", c.PeerAddr())
 }
 
-func(this *example2)WriteCompletCallback(c *tcpconnect.TcpConnect){
+func(this *example2)WriteCompletCallback(c *tcpconnect.Connect){
 	log.Infof("write complete:[%s]", c.PeerAddr())
 }
 
-func(this *example2)ConnectCloseCallback(c *tcpconnect.TcpConnect){
+func(this *example2)ConnectCloseCallback(c *tcpconnect.Connect){
 	log.Infof("connect close:[%s]", c.PeerAddr())
 }
 

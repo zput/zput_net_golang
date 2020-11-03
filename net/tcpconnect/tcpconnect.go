@@ -15,9 +15,9 @@ import (
 	"time"
 )
 
-type OnMessageCallback func(*TcpConnect, *ringbuffer.RingBuffer)
-type OnConnectCloseCallback func(*TcpConnect)
-type OnWriteCompletCallback func(*TcpConnect)
+type OnMessageCallback func(*Connect, *ringbuffer.RingBuffer)
+type OnConnectCloseCallback func(*Connect)
+type OnWriteCompletCallback func(*Connect)
 
 
 type ConnectState int
@@ -29,7 +29,7 @@ const(
 )
 
 // Connection TCP 连接
-type TcpConnect struct {
+type Connect struct {
 	loop                       *event_loop.EventLoop
 	event                      *event_loop.Event
 	outBuffer *ringbuffer.RingBuffer // write buffer
@@ -51,8 +51,8 @@ type TcpConnect struct {
 var ErrConnectionClosed = errors.New("connection closed")
 
 // New 创建 Connection
-func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration,) (*TcpConnect, error) {
-	var tcpConnection = TcpConnect{
+func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration,) (*Connect, error) {
+	var tcpConnection = Connect{
 		loop:loop,
 		fd:fd,
 		peerAddr:sockAddrToString(sa),
@@ -100,7 +100,7 @@ func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.T
 }
 
 //Close关闭连接
-func (this *TcpConnect) Close() error {
+func (this *Connect) Close() error {
 	if this.state == Disconnected {
 		return ErrConnectionClosed
 	}
@@ -111,7 +111,7 @@ func (this *TcpConnect) Close() error {
 	return nil
 }
 
-func (this *TcpConnect) closeTimeoutConn() func() {
+func (this *Connect) closeTimeoutConn() func() {
 	return func() {
 		now := time.Now()
 		intervals := now.Sub(time.Unix(this.activeTime.Get(), 0))
@@ -123,7 +123,7 @@ func (this *TcpConnect) closeTimeoutConn() func() {
 	}
 }
 
-func (this *TcpConnect) setNoDelay(enable bool)(err error){
+func (this *Connect) setNoDelay(enable bool)(err error){
 	if err = unix.SetNonblock(this.fd, enable); err != nil {
 		_ = unix.Close(this.fd)
 		log.Error("set nonblock:", err)
@@ -132,19 +132,19 @@ func (this *TcpConnect) setNoDelay(enable bool)(err error){
 	return nil
 }
 
-func (this *TcpConnect) SetMessageCallback(messageCallback OnMessageCallback) {
+func (this *Connect) SetMessageCallback(messageCallback OnMessageCallback) {
 	this.messageCallback = messageCallback
 }
 
-func (this *TcpConnect) SetConnectCloseCallback(connectCloseCallback OnConnectCloseCallback) {
+func (this *Connect) SetConnectCloseCallback(connectCloseCallback OnConnectCloseCallback) {
 	this.connectCloseCallback = connectCloseCallback
 }
 
-func (this *TcpConnect) SetWriteCompleteCallback(writeCompletCallback OnWriteCompletCallback) {
+func (this *Connect) SetWriteCompleteCallback(writeCompletCallback OnWriteCompletCallback) {
 	this.writeCompleteCallback = writeCompletCallback
 }
 
-func (this *TcpConnect) ConnectedHandle()(err error){
+func (this *Connect) ConnectedHandle()(err error){
 
 	//将这个accept event添加到loop，给多路复用监听。
 	err = this.loop.AddEvent(this.event)
@@ -178,7 +178,7 @@ func (this *TcpConnect) ConnectedHandle()(err error){
 	return
 }
 
-func (this *TcpConnect) readEvent() {
+func (this *Connect) readEvent() {
 	this.updateActivityTime()
 
 	n, err := unix.Read(this.fd, this.temporaryBuf)
@@ -196,7 +196,7 @@ func (this *TcpConnect) readEvent() {
 	}
 }
 
-func (this *TcpConnect) writeEvent() {
+func (this *Connect) writeEvent() {
 	this.updateActivityTime()
 
 	first, end := this.outBuffer.PeekAll()
@@ -234,7 +234,7 @@ func (this *TcpConnect) writeEvent() {
 	}
 }
 
-func (this *TcpConnect) Write(data []byte) {
+func (this *Connect) Write(data []byte) {
 	if !this.outBuffer.IsEmpty(){
 		_, _ = this.outBuffer.Write(data)
 	} else {
@@ -256,12 +256,12 @@ func (this *TcpConnect) Write(data []byte) {
 	}
 }
 
-func (this *TcpConnect) errEvent() {
+func (this *Connect) errEvent() {
 	this.closeEvent()
 }
 
 // TODO 为什么C++需要加share_prt
-func (this *TcpConnect) closeEvent() {
+func (this *Connect) closeEvent() {
 	if this.state != Disconnected {
 		//设置状态
 		this.state = Disconnected
@@ -287,7 +287,7 @@ func (this *TcpConnect) closeEvent() {
 }
 
 // ShutdownWrite 关闭可写端，等待读取完接收缓冲区所有数据
-func (this *TcpConnect) ShutdownWrite() error {
+func (this *Connect) ShutdownWrite() error {
 	if this.state == Connected{
 		this.state = Disconnecting
 		return unix.Shutdown(this.fd, unix.SHUT_WR)
@@ -296,12 +296,12 @@ func (this *TcpConnect) ShutdownWrite() error {
 }
 
 // PeerAddr 获取客户端地址信息
-func (this *TcpConnect) PeerAddr() string {
+func (this *Connect) PeerAddr() string {
 	return this.peerAddr
 }
 
 // Send 用来在非 loop 协程发送
-func (this *TcpConnect) WriteInSelfLoop(buffer []byte) error {
+func (this *Connect) WriteInSelfLoop(buffer []byte) error {
 	if this.state != Connected {
 		return ErrConnectionClosed
 	}
@@ -323,7 +323,7 @@ func sockAddrToString(sa unix.Sockaddr) string {
 	}
 }
 
-func (this *TcpConnect)updateActivityTime(){
+func (this *Connect)updateActivityTime(){
 	if this.idleTime > 0 {
 		_ = this.activeTime.Swap(time.Now().Unix())
 	}

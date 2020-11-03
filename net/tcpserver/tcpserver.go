@@ -13,19 +13,19 @@ import (
 	"time"
 )
 
-type TcpServer struct{
+type Server struct{
 	options *protocol.Options
 	handleEvent IHandleEvent
 	mainLoop *event_loop.EventLoop
 	subLoops []*event_loop.EventLoop
-	tcpAccept *tcpaccept.TcpAccept
-	connectPool map[string]*tcpconnect.TcpConnect
+	tcpAccept *tcpaccept.Accept
+	connectPool map[string]*tcpconnect.Connect
 	nextLoopIndex int
 
 	timingWheel *timingwheel.TimingWheel
 }
 
-func New(handleEvent IHandleEvent, opts ...protocol.Option)(*TcpServer, error){
+func New(handleEvent IHandleEvent, opts ...protocol.Option)(*Server, error){
 	var err error
 
 	mainLoop, err := event_loop.New(-1)
@@ -34,11 +34,11 @@ func New(handleEvent IHandleEvent, opts ...protocol.Option)(*TcpServer, error){
 		return nil, err
 	}
 
-	var tcpServer = TcpServer{
+	var tcpServer = Server{
 		handleEvent:handleEvent,
 		mainLoop:mainLoop,
 		options:protocol.NewOptions(opts...),
-		connectPool:make(map[string]*tcpconnect.TcpConnect),
+		connectPool:make(map[string]*tcpconnect.Connect),
 	}
 
 	tcpServer.timingWheel = timingwheel.NewTimingWheel(tcpServer.options.GetTick(), tcpServer.options.GetWheelSize())
@@ -81,7 +81,7 @@ func New(handleEvent IHandleEvent, opts ...protocol.Option)(*TcpServer, error){
 }
 
 // Start 启动 Server
-func (this *TcpServer) Start() {
+func (this *Server) Start() {
 	this.timingWheel.Start()
 
 	err := this.tcpAccept.Listen()
@@ -102,7 +102,7 @@ func (this *TcpServer) Start() {
 }
 
 // 停止系统。
-func (this *TcpServer) Stop() {
+func (this *Server) Stop() {
 	//先关闭tcpaccept, tcpconnect，然后再关闭loop
 	var (
 		err error
@@ -135,16 +135,16 @@ func (this *TcpServer) Stop() {
 }
 
 // RunAfter 延时任务
-func (this *TcpServer) RunAfter(d time.Duration, f func()) *timingwheel.Timer {
+func (this *Server) RunAfter(d time.Duration, f func()) *timingwheel.Timer {
 	return this.timingWheel.AfterFunc(d, f)
 }
 
 // RunEvery 定时任务
-func (this *TcpServer) RunEvery(d time.Duration, f func()) *timingwheel.Timer {
+func (this *Server) RunEvery(d time.Duration, f func()) *timingwheel.Timer {
 	return this.timingWheel.ScheduleFunc(&protocol.EveryScheduler{Interval: d}, f)
 }
 
-func (this *TcpServer) newConnected(fd int, sa unix.Sockaddr){
+func (this *Server) newConnected(fd int, sa unix.Sockaddr){
 	loopTemp := this.getOneLoopFromPool()
 
 	c, err := tcpconnect.New(loopTemp, fd, sa, this.timingWheel, this.options.IdleTime)
@@ -168,23 +168,23 @@ func (this *TcpServer) newConnected(fd int, sa unix.Sockaddr){
 	})
 }
 
-func (this *TcpServer) getOneLoopFromPool() *event_loop.EventLoop {
+func (this *Server) getOneLoopFromPool() *event_loop.EventLoop {
 	// TODO hash?
 	loop := this.subLoops[this.nextLoopIndex]
 	this.nextLoopIndex = (this.nextLoopIndex + 1) % len(this.subLoops)
 	return loop
 }
 
-func (this *TcpServer) connectCloseEvent(connect *tcpconnect.TcpConnect){
+func (this *Server) connectCloseEvent(connect *tcpconnect.Connect){
 	this.handleEvent.ConnectCloseCallback(connect)
 	this.removeConnect(connect.PeerAddr())
 }
 
-func (this *TcpServer) addConnect(name string, connect *tcpconnect.TcpConnect) {
+func (this *Server) addConnect(name string, connect *tcpconnect.Connect) {
 	this.connectPool[name] = connect
 }
 
-func (this *TcpServer) removeConnect(name string){
+func (this *Server) removeConnect(name string){
 	_, ok := this.connectPool[name]
 	if ok {
 		delete(this.connectPool, name)

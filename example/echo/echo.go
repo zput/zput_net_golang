@@ -23,18 +23,18 @@ func (this *Echo) GetConnectTimes() int64 {
 	return this.connectTimes
 }
 
-func (this *Echo) ConnectCallback(c *tcpconnect.TcpConnect) {
+func (this *Echo) ConnectCallback(c *tcpconnect.Connect) {
 	atomic.AddInt64(&this.connectTimes, 1)
 	this.HandleEventImpl.ConnectCallback(c)
 }
-func (this *Echo) MessageCallback(c *tcpconnect.TcpConnect, buffer *ringbuffer.RingBuffer) {
+func (this *Echo) MessageCallback(c *tcpconnect.Connect, buffer *ringbuffer.RingBuffer) {
 	first, end := buffer.PeekAll()
 	buffer.RetrieveAll()
 	out := append(first, end...)
 	c.Write(out)
 }
 
-func (this *Echo) OnClose(c *tcpconnect.TcpConnect) {
+func (this *Echo) OnClose(c *tcpconnect.Connect) {
 	atomic.AddInt64(&this.connectTimes, -1)
 	this.HandleEventImpl.ConnectCloseCallback(c)
 }
