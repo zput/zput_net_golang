@@ -27,11 +27,11 @@ func NewEvent(eventLoopImp *EventLoop, eventFd int)*Event{
 }
 
 func (this *Event)Register()error{
-	return this.eventLoopImp.AddEvent(this)
+	return this.eventLoopImp.addEvent(this)
 }
 
 func (this *Event)UnRegister()error{
-	return this.eventLoopImp.RemoveEvent(this)
+	return this.eventLoopImp.removeEvent(this)
 }
 
 func (this *Event)EnableReading(isEnable bool)error{
@@ -122,7 +122,7 @@ func(this *Event)SetCloseFunc(function protocol.DefaultFunction){
 }
 
 func (this *Event)update()error{
-	return this.eventLoopImp.ModifyEvent(this)
+	return this.eventLoopImp.modifyEvent(this)
 }
 
 

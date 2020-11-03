@@ -30,12 +30,12 @@ func (this *EventCtrl)Stop()error{
 	return this.multi.Close()
 }
 
-func (this *EventCtrl)AddEvent(eventPtr *Event)error{
+func (this *EventCtrl)addEvent(eventPtr *Event)error{
 	this.eventPool[eventPtr.GetFd()]=eventPtr
 	return this.multi.AddEvent(eventPtr.GetFd(), eventPtr.GetEvents(), eventPtr.GetOldEvents())
 }
 
-func (this *EventCtrl)RemoveEvent(eventPtr *Event)error{
+func (this *EventCtrl)removeEvent(eventPtr *Event)error{
 	_, ok := this.eventPool[eventPtr.GetFd()]
 	if ok {
 		delete(this.eventPool, eventPtr.GetFd())
@@ -43,11 +43,11 @@ func (this *EventCtrl)RemoveEvent(eventPtr *Event)error{
 	return this.multi.RemoveEvent(eventPtr.GetFd(), eventPtr.GetOldEvents())
 }
 
-func (this *EventCtrl)ModifyEvent(eventPtr *Event)error{
+func (this *EventCtrl)modifyEvent(eventPtr *Event)error{
 	return this.multi.ModifyEvent(eventPtr.GetFd(), eventPtr.GetEvents(), eventPtr.GetOldEvents())
 }
 
-func (this *EventCtrl)WaitAndRunHandle(PollTimeMs int){
+func (this *EventCtrl)waitAndRunHandle(PollTimeMs int){
 	this.multi.WaitEvent(this.handlerEventWrap, PollTimeMs)
 }
 
@@ -67,6 +67,6 @@ func (this *EventCtrl) handlerEventWrap(fd int, eventType protocol.EventType) {
 	//l.eventHandling.Set(false)
 }
 
-func (this *EventCtrl)Wake()error{
+func (this *EventCtrl)wake()error{
 	return this.multi.Wake()
 }

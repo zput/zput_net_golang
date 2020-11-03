@@ -147,7 +147,7 @@ func (this *Connect) SetWriteCompleteCallback(writeCompletCallback OnWriteComple
 func (this *Connect) ConnectedHandle()(err error){
 
 	//将这个accept event添加到loop，给多路复用监听。
-	err = this.loop.AddEvent(this.event)
+	err = this.event.Register()
 	if err != nil{
 		log.Error("creating tcpConnect failure; AddEvent; error[%v]", err)
 		return err

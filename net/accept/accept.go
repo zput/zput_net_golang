@@ -49,7 +49,7 @@ func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop)
 	//新建Tcp Accept event_loop.
 	tcpAccept.event = event_loop.NewEvent(loop, tcpAccept.Fd())
 	//将这个accept event添加到loop，给多路复用监听。
-	err = tcpAccept.loop.AddEvent(tcpAccept.event)
+	err = tcpAccept.event.Register()
 	if err != nil{
 		log.Error("creating tcpAccept failure; AddEvent; error[%v]", err)
 		return nil, err

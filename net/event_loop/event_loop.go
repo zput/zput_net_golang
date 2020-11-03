@@ -38,7 +38,7 @@ func (this *EventLoop) Run(){
 	this.running.Set(true)
 
 	for {
-		this.eventCtrl.WaitAndRunHandle(protocol.PollTimeMs)
+		this.eventCtrl.waitAndRunHandle(protocol.PollTimeMs)
 		this.runAllFunctionInLoop()
 
 		//在tcpaccept,tcpconnect关闭后再关闭。
@@ -60,16 +60,16 @@ func (this *EventLoop)Stop()error{
 	return this.eventCtrl.Stop()
 }
 
-func (this *EventLoop)AddEvent(event *Event)error{
-	return this.eventCtrl.AddEvent(event)
+func (this *EventLoop)addEvent(event *Event)error{
+	return this.eventCtrl.addEvent(event)
 }
 
-func (this *EventLoop)RemoveEvent(event *Event)error{
-	return this.eventCtrl.RemoveEvent(event)
+func (this *EventLoop)removeEvent(event *Event)error{
+	return this.eventCtrl.removeEvent(event)
 }
 
-func (this *EventLoop)ModifyEvent(event *Event)error{
-	return this.eventCtrl.ModifyEvent(event)
+func (this *EventLoop)modifyEvent(event *Event)error{
+	return this.eventCtrl.modifyEvent(event)
 }
 
 //func(this *EventLoop)AddFunInLoop(fun protocol.AddFunToLoopWaitingRun){
@@ -105,5 +105,5 @@ func(this *EventLoop)RunInLoop(fun protocol.AddFunToLoopWaitingRun){
 }
 
 func (this *EventLoop)wake()error{
-	return this.eventCtrl.Wake()
+	return this.eventCtrl.wake()
 }

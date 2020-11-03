@@ -57,7 +57,7 @@ func TestLoop(t *testing.T){
 			return
 		default:
 			log.Info("enter")
-			err := loop.AddEvent(timerEvent)
+			err := loop.addEvent(timerEvent)
 			if err != nil {
 				t.Fatalf("create fd error; error[%+v]", err)
 			}
