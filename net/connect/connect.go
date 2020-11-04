@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/RussellLuo/timingwheel"
+	"github.com/panjf2000/gnet/pool/bytebuffer"
 	"github.com/zput/ringbuffer"
 	"github.com/zput/ringbuffer/pool"
 	"github.com/zput/zput_net_golang/net/event_loop"
@@ -15,10 +16,9 @@ import (
 	"time"
 )
 
-type OnMessageCallback func(*Connect, *ringbuffer.RingBuffer)[]byte
+type OnMessageCallback func(*Connect, []byte)[]byte
 type OnConnectCloseCallback func(*Connect)
 type OnWriteCompletCallback func(*Connect)
-
 
 type ConnectState int
 const(
@@ -28,15 +28,18 @@ const(
 	Disconnecting ConnectState = 4
 )
 
-
 // Connection TCP 连接
 type Connect struct {
 	loop                       *event_loop.EventLoop
 	event                      *event_loop.Event
+	// TODO init
+	buf []byte //
+	temporaryBuf []byte // don't need init
 	outBuffer *ringbuffer.RingBuffer // write buffer
 	inBuffer  *ringbuffer.RingBuffer // read buffer
 	// TODO initial
-	AfterDecodeBuffer  *ringbuffer.RingBuffer // read data after decode buffer
+	byteBuffer     *bytebuffer.ByteBuffer // bytes buffer for buffering current packet and data in ring-buffer
+
 	messageCallback OnMessageCallback
 	connectCloseCallback OnConnectCloseCallback
 	writeCompleteCallback OnWriteCompletCallback
@@ -48,26 +51,24 @@ type Connect struct {
 	idleTime    time.Duration
 	activeTime  protocol.Int64
 	timingWheel *timingwheel.TimingWheel
-	temporaryBuf []byte
-	codeImp protocol.ICode
+	codeImp protocol.ICodec
 }
 
 var ErrConnectionClosed = errors.New("connection closed")
 
 // New 创建 Connection
-func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration, codeImp protocol.ICode) (*Connect, error) {
+func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration, codeImp protocol.ICodec) (*Connect, error) {
 	var tcpConnection = Connect{
 		loop:loop,
 		fd:fd,
 		peerAddr:sockAddrToString(sa),
+		buf:make([]byte, 0xFFFF),
 		outBuffer:pool.Get(),
 		inBuffer:pool.Get(),
-		AfterDecodeBuffer:pool.Get(),
 		codeImp: codeImp,
 		state:Disconnected,
 		idleTime:idleTime,
 		timingWheel:tw,
-		temporaryBuf:make([]byte, 0xFFFF),
 	}
 
 	tcpConnection.outBuffer.RetrieveAll()
@@ -187,7 +188,7 @@ func (this *Connect) ConnectedHandle()(err error){
 func (this *Connect) readEvent() {
 	this.updateActivityTime()
 
-	n, err := unix.Read(this.fd, this.temporaryBuf)
+	n, err := unix.Read(this.fd, this.buf)
 	if n == 0 || err != nil {
 		if err != unix.EAGAIN {
 			// TODO zxc
@@ -197,44 +198,23 @@ func (this *Connect) readEvent() {
 		return
 	}
 	if n > 0{
-		dataAfterDecode, err := this.decodeAllDataHaveAccepted(this.temporaryBuf[:n])
-		if err != nil{
-			_, _ = this.inBuffer.Write(this.temporaryBuf[:n])
-		}else{
-			_, _ = this.AfterDecodeBuffer.Write(dataAfterDecode)
-			outerData, err := this.codeImp.DeCode(this.messageCallback(this, this.AfterDecodeBuffer))
-			if err != nil{
-				log.Errorf("DeCode; error[%v]", err)
-			}
-			if len(outerData)>0{
-				this.write(outerData)
+		this.temporaryBuf = this.buf[:n] // will change by shiftN; ReadN; resetBuffer
+		for inFrame, _ := this.read(); inFrame != nil; inFrame, _ = this.read() {
+			out := this.messageCallback(this, inFrame)
+			if out != nil {
+				outFrame, _ := this.codeImp.Encode(this, out)
+				if len(outFrame)>0{
+					this.write(outFrame)
+				}
 			}
 		}
+
+		this.inBuffer.Write(this.temporaryBuf)
 	}
 }
 
-func (this *Connect) read(fromRemoteData []byte)[]byte{
-	if this.inBuffer.IsEmpty() == false{
-		var tempSlice = make([]byte, this.inBuffer.Size()+len(fromRemoteData))
-		// TODO
-		// var xxxTest []byte  xxxTest is nil?
-		// type slice {
-		//}
-		first, end := this.inBuffer.PeekAll()
-		if len(first) == 0{
-			copy(tempSlice, end)
-		}else{
-			copy(tempSlice, first)
-			copy(tempSlice[len(first):], end)
-		}
-		copy(tempSlice[this.inBuffer.Size():], fromRemoteData)
-		fromRemoteData = tempSlice
-	}
-	return fromRemoteData
-}
-
-func (this *Connect) decodeAllDataHaveAccepted(fromRemoteData []byte)([]byte, error){
-	result, err := this.codeImp.DeCode(this.read(fromRemoteData))
+func (this *Connect) read()([]byte, error){
+	result, err := this.codeImp.Decode(this)
 	if err != nil{
 		log.Errorf("decodeAllDataHaveAccepted; error[%v]", err)
 		return nil, err
@@ -242,6 +222,37 @@ func (this *Connect) decodeAllDataHaveAccepted(fromRemoteData []byte)([]byte, er
 
 	return result, nil
 }
+
+
+//func (this *Connect) read(fromRemoteData []byte)[]byte{
+//	if this.inBuffer.IsEmpty() == false{
+//		var tempSlice = make([]byte, this.inBuffer.Size()+len(fromRemoteData))
+//		// TODO
+//		// var xxxTest []byte  xxxTest is nil?
+//		// type slice {
+//		//}
+//		first, end := this.inBuffer.PeekAll()
+//		if len(first) == 0{
+//			copy(tempSlice, end)
+//		}else{
+//			copy(tempSlice, first)
+//			copy(tempSlice[len(first):], end)
+//		}
+//		copy(tempSlice[this.inBuffer.Size():], fromRemoteData)
+//		fromRemoteData = tempSlice
+//	}
+//	return fromRemoteData
+//}
+//
+//func (this *Connect) decodeAllDataHaveAccepted(fromRemoteData []byte)([]byte, error){
+//	result, err := this.codeImp.DeCode(this.read(fromRemoteData))
+//	if err != nil{
+//		log.Errorf("decodeAllDataHaveAccepted; error[%v]", err)
+//		return nil, err
+//	}
+//
+//	return result, nil
+//}
 
 func (this *Connect) writeEvent() {
 	this.updateActivityTime()
@@ -376,4 +387,89 @@ func (this *Connect)updateActivityTime(){
 	if this.idleTime > 0 {
 		_ = this.activeTime.Swap(time.Now().Unix())
 	}
+}
+
+//////////////////////////public API ////////////////////////////////
+
+func (c *Connect) Read() []byte {
+	if c.inBuffer.IsEmpty() {
+		return c.temporaryBuf
+	}
+
+	c.byteBuffer = bytebuffer.Get()
+
+	first, end := c.inBuffer.PeekAll()
+	if len(first) == 0{
+		_, _ = c.byteBuffer.Write(end)
+	}else{
+		_, _ = c.byteBuffer.Write(first)
+		_, _ = c.byteBuffer.Write(end)
+	}
+	_, _ = c.byteBuffer.Write(c.temporaryBuf)
+	return c.byteBuffer.Bytes()
+}
+
+func (c *Connect) ResetBuffer() {
+	c.temporaryBuf = c.temporaryBuf[:0]
+	c.inBuffer.Reset()
+	bytebuffer.Put(c.byteBuffer)
+	c.byteBuffer = nil
+}
+
+func (c *Connect) ReadN(n int) (size int, buf []byte) {
+	inBufferLen := c.inBuffer.Size()
+	tempBufferLen := len(c.temporaryBuf)
+	if totalLen := inBufferLen + tempBufferLen; totalLen < n || n <= 0 {
+		n = totalLen
+	}
+	size = n
+	if c.inBuffer.IsEmpty() {
+		buf = c.temporaryBuf[:n]
+		return
+	}
+	head, tail := c.inBuffer.Peek(n)
+	c.byteBuffer = bytebuffer.Get()
+	_, _ = c.byteBuffer.Write(head)
+	_, _ = c.byteBuffer.Write(tail)
+	if inBufferLen >= n {
+		buf = c.byteBuffer.Bytes()
+		return
+	}
+
+	restSize := n - inBufferLen
+	_, _ = c.byteBuffer.Write(c.temporaryBuf[:restSize])
+	buf = c.byteBuffer.Bytes()
+	return
+}
+
+func (c *Connect) ShiftN(n int) (size int) {
+	inBufferLen := c.inBuffer.Size()
+	tempBufferLen := len(c.temporaryBuf)
+	if inBufferLen+tempBufferLen < n || n <= 0 {
+		c.ResetBuffer()
+		size = inBufferLen + tempBufferLen
+		return
+	}
+	size = n
+	if c.inBuffer.IsEmpty() {
+		c.temporaryBuf = c.temporaryBuf[n:]
+		return
+	}
+
+	bytebuffer.Put(c.byteBuffer)
+	c.byteBuffer = nil
+
+	if inBufferLen >= n {
+		c.inBuffer.Retrieve(n)
+		return
+	}
+	c.inBuffer.Reset()
+
+	restSize := n - inBufferLen
+	c.temporaryBuf = c.temporaryBuf[restSize:]
+	return
+}
+
+func (c *Connect) BufferLength() int {
+	return c.inBuffer.Size() + len(c.temporaryBuf)
 }

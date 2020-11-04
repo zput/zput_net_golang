@@ -1,13 +1,12 @@
 package tcpserver
 
 import (
-	"github.com/zput/ringbuffer"
 	"github.com/zput/zput_net_golang/net/connect"
 )
 
 type IHandleEvent interface {
 	ConnectCallback(*connect.Connect)
-	MessageCallback(*connect.Connect, *ringbuffer.RingBuffer)[]byte
+	MessageCallback(*connect.Connect, []byte)[]byte
 	WriteCompletCallback(*connect.Connect)
 	ConnectCloseCallback(*connect.Connect)
 }
@@ -18,7 +17,7 @@ func(this *HandleEventImpl)ConnectCallback(c *connect.Connect){
 	//log.Infof("connect:[%s]", c.PeerAddr())
 }
 
-func(this *HandleEventImpl)MessageCallback(c *connect.Connect, r *ringbuffer.RingBuffer)[]byte{
+func(this *HandleEventImpl)MessageCallback(c *connect.Connect, b []byte)[]byte{
 	//log.Infof("connect:[%s] send message[%s]", c.PeerAddr(), r.PrintRingBufferInfo())
 	return nil
 }

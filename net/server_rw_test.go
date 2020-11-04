@@ -2,7 +2,6 @@ package net
 
 import (
 	"bytes"
-	"github.com/zput/ringbuffer"
 	"github.com/zput/zput_net_golang/net/connect"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
@@ -20,9 +19,9 @@ func(this *exampleRW)ConnectCallback(c *connect.Connect){
 	log.Infof("connect:[%s]", c.PeerAddr())
 }
 
-func(this *exampleRW)MessageCallback(c *connect.Connect, buf *ringbuffer.RingBuffer)[]byte{
+func(this *exampleRW)MessageCallback(c *connect.Connect, buf []byte)[]byte{
 	log.Infof("read message:[%s]", c.PeerAddr())
-	return buf.ReadAll2NewByteSlice()
+	return buf
 }
 
 func(this *exampleRW)WriteCompletCallback(c *connect.Connect){

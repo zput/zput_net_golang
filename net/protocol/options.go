@@ -13,7 +13,7 @@ type Options struct {
 	wheelSize int64
 	IdleTime  time.Duration
 
-	codeImp ICode
+	codeImp ICodec
 }
 
 // Option ...
@@ -31,7 +31,7 @@ func(this *Options)GetWheelSize() int64 {
 	return this.wheelSize
 }
 
-func(this *Options)GetCode() ICode {
+func(this *Options)GetCode() ICodec {
 	return this.codeImp
 }
 
@@ -56,7 +56,7 @@ func NewOptions(opt ...Option) *Options {
 	}
 	if opts.codeImp == nil{
 		// TODO
-		opts.codeImp = new(DefaultCode)
+		opts.codeImp = new(BuiltInFrameCodec)
 	}
 
 	return &opts
@@ -96,7 +96,7 @@ func IdleTime(t time.Duration) Option {
 	}
 }
 
-func CodeImp(codeImp ICode) Option {
+func CodeImp(codeImp ICodec) Option {
 	return func(o *Options) {
 		o.codeImp = codeImp
 	}
