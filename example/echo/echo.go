@@ -6,7 +6,7 @@ import (
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"github.com/zput/zput_net_golang/net/connect"
-	"github.com/zput/zput_net_golang/net/tcpserver"
+	"github.com/zput/zput_net_golang/net/server"
 	"net/http"
 	_ "net/http/pprof"
 	"strconv"
@@ -23,18 +23,18 @@ func (this *Echo) GetConnectTimes() int64 {
 	return this.connectTimes
 }
 
-func (this *Echo) ConnectCallback(c *tcpconnect.Connect) {
+func (this *Echo) ConnectCallback(c *connect.Connect) {
 	atomic.AddInt64(&this.connectTimes, 1)
 	this.HandleEventImpl.ConnectCallback(c)
 }
-func (this *Echo) MessageCallback(c *tcpconnect.Connect, buffer *ringbuffer.RingBuffer) {
+func (this *Echo) MessageCallback(c *connect.Connect, buffer *ringbuffer.RingBuffer)[]byte {
 	first, end := buffer.PeekAll()
 	buffer.RetrieveAll()
 	out := append(first, end...)
-	c.Write(out)
+	return out
 }
 
-func (this *Echo) OnClose(c *tcpconnect.Connect) {
+func (this *Echo) OnClose(c *connect.Connect) {
 	atomic.AddInt64(&this.connectTimes, -1)
 	this.HandleEventImpl.ConnectCloseCallback(c)
 }

@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-type OnMessageCallback func(*Connect, *ringbuffer.RingBuffer)
+type OnMessageCallback func(*Connect, *ringbuffer.RingBuffer)[]byte
 type OnConnectCloseCallback func(*Connect)
 type OnWriteCompletCallback func(*Connect)
 
@@ -28,12 +28,15 @@ const(
 	Disconnecting ConnectState = 4
 )
 
+
 // Connection TCP 连接
 type Connect struct {
 	loop                       *event_loop.EventLoop
 	event                      *event_loop.Event
 	outBuffer *ringbuffer.RingBuffer // write buffer
 	inBuffer  *ringbuffer.RingBuffer // read buffer
+	// TODO initial
+	AfterDecodeBuffer  *ringbuffer.RingBuffer // read data after decode buffer
 	messageCallback OnMessageCallback
 	connectCloseCallback OnConnectCloseCallback
 	writeCompleteCallback OnWriteCompletCallback
@@ -46,18 +49,21 @@ type Connect struct {
 	activeTime  protocol.Int64
 	timingWheel *timingwheel.TimingWheel
 	temporaryBuf []byte
+	codeImp protocol.ICode
 }
 
 var ErrConnectionClosed = errors.New("connection closed")
 
 // New 创建 Connection
-func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration,) (*Connect, error) {
+func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration, codeImp protocol.ICode) (*Connect, error) {
 	var tcpConnection = Connect{
 		loop:loop,
 		fd:fd,
 		peerAddr:sockAddrToString(sa),
 		outBuffer:pool.Get(),
 		inBuffer:pool.Get(),
+		AfterDecodeBuffer:pool.Get(),
+		codeImp: codeImp,
 		state:Disconnected,
 		idleTime:idleTime,
 		timingWheel:tw,
@@ -191,9 +197,50 @@ func (this *Connect) readEvent() {
 		return
 	}
 	if n > 0{
-		_, _ = this.inBuffer.Write(this.temporaryBuf[:n])
-		this.messageCallback(this, this.inBuffer)
+		dataAfterDecode, err := this.decodeAllDataHaveAccepted(this.temporaryBuf[:n])
+		if err != nil{
+			_, _ = this.inBuffer.Write(this.temporaryBuf[:n])
+		}else{
+			_, _ = this.AfterDecodeBuffer.Write(dataAfterDecode)
+			outerData, err := this.codeImp.DeCode(this.messageCallback(this, this.AfterDecodeBuffer))
+			if err != nil{
+				log.Errorf("DeCode; error[%v]", err)
+			}
+			if len(outerData)>0{
+				this.write(outerData)
+			}
+		}
 	}
+}
+
+func (this *Connect) read(fromRemoteData []byte)[]byte{
+	if this.inBuffer.IsEmpty() == false{
+		var tempSlice = make([]byte, this.inBuffer.Size()+len(fromRemoteData))
+		// TODO
+		// var xxxTest []byte  xxxTest is nil?
+		// type slice {
+		//}
+		first, end := this.inBuffer.PeekAll()
+		if len(first) == 0{
+			copy(tempSlice, end)
+		}else{
+			copy(tempSlice, first)
+			copy(tempSlice[len(first):], end)
+		}
+		copy(tempSlice[this.inBuffer.Size():], fromRemoteData)
+		fromRemoteData = tempSlice
+	}
+	return fromRemoteData
+}
+
+func (this *Connect) decodeAllDataHaveAccepted(fromRemoteData []byte)([]byte, error){
+	result, err := this.codeImp.DeCode(this.read(fromRemoteData))
+	if err != nil{
+		log.Errorf("decodeAllDataHaveAccepted; error[%v]", err)
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (this *Connect) writeEvent() {
@@ -234,7 +281,7 @@ func (this *Connect) writeEvent() {
 	}
 }
 
-func (this *Connect) Write(data []byte) {
+func (this *Connect) write(data []byte) {
 	if !this.outBuffer.IsEmpty(){
 		_, _ = this.outBuffer.Write(data)
 	} else {
@@ -263,6 +310,7 @@ func (this *Connect) errEvent() {
 // TODO 为什么C++需要加share_prt
 func (this *Connect) closeEvent() {
 	if this.state != Disconnected {
+		log.Debug("ready to close connection event")
 		//设置状态
 		this.state = Disconnected
 		//在event中取消掉loop注册
@@ -270,6 +318,7 @@ func (this *Connect) closeEvent() {
 		this.event.DisableAll()
 		this.event.UnRegister()
 
+		log.Debug("ready to close connection event; callback upper")
 		// 这个是上层的责任，应该由上层来删除。这个TcpConnect与loop，fd的联系。
 		if this.connectCloseCallback != nil {
 			this.connectCloseCallback(this)
@@ -307,7 +356,7 @@ func (this *Connect) WriteInSelfLoop(buffer []byte) error {
 	}
 
 	this.loop.RunInLoop(func() {
-		this.Write(buffer)
+		this.write(buffer)
 	})
 	return nil
 }

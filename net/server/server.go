@@ -147,7 +147,7 @@ func (this *Server) RunEvery(d time.Duration, f func()) *timingwheel.Timer {
 func (this *Server) newConnected(fd int, sa unix.Sockaddr){
 	loopTemp := this.getOneLoopFromPool()
 
-	c, err := connect.New(loopTemp, fd, sa, this.timingWheel, this.options.IdleTime)
+	c, err := connect.New(loopTemp, fd, sa, this.timingWheel, this.options.IdleTime, this.options.GetCode())
 	if err != nil{
 		log.Errorf("failure to create new connection; error[%v]", err)
 		return
@@ -178,6 +178,7 @@ func (this *Server) getOneLoopFromPool() *event_loop.EventLoop {
 func (this *Server) connectCloseEvent(connect *connect.Connect){
 	this.handleEvent.ConnectCloseCallback(connect)
 	this.removeConnect(connect.PeerAddr())
+	log.Debug("in server; delete connect pool")
 }
 
 func (this *Server) addConnect(name string, connect *connect.Connect) {

@@ -7,7 +7,7 @@ import (
 
 type IHandleEvent interface {
 	ConnectCallback(*connect.Connect)
-	MessageCallback(*connect.Connect, *ringbuffer.RingBuffer)
+	MessageCallback(*connect.Connect, *ringbuffer.RingBuffer)[]byte
 	WriteCompletCallback(*connect.Connect)
 	ConnectCloseCallback(*connect.Connect)
 }
@@ -18,8 +18,9 @@ func(this *HandleEventImpl)ConnectCallback(c *connect.Connect){
 	//log.Infof("connect:[%s]", c.PeerAddr())
 }
 
-func(this *HandleEventImpl)MessageCallback(c *connect.Connect, r *ringbuffer.RingBuffer){
+func(this *HandleEventImpl)MessageCallback(c *connect.Connect, r *ringbuffer.RingBuffer)[]byte{
 	//log.Infof("connect:[%s] send message[%s]", c.PeerAddr(), r.PrintRingBufferInfo())
+	return nil
 }
 
 func(this *HandleEventImpl)WriteCompletCallback(c *connect.Connect){
