@@ -35,3 +35,11 @@ function gobench {
 
 gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58001
 
+
+#Processes: 380 total, 2 running, 29 stuck, 349 sleeping, 2317 threads                                                     20:25:21
+#Load Avg: 2.83, 2.51, 2.59  CPU usage: 7.48% user, 7.97% sys, 84.54% idle    SharedLibs: 178M resident, 60M data, 35M linkedit.
+#MemRegions: 63322 total, 1272M resident, 62M private, 852M shared. PhysMem: 6054M used (1749M wired), 2137M unused.
+#VM: 1946G vsize, 1371M framework vsize, 248923(0) swapins, 491070(0) swapouts.
+#Networks: packets: 78406024/753G in, 78338758/753G out. Disks: 401438/5892M read, 74757/4680M written.
+
+
