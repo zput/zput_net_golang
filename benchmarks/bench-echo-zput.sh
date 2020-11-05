@@ -27,13 +27,13 @@ function gobench {
     sleep 1
     echo "*** 50 connections, 10 seconds, 6 byte packets"
     nl=$'\r\n'
-    tcpkali --workers 1 -c 50 -T 60s -m "PING{$nl}" 127.0.0.1:$4
+    tcpkali --workers 1 -c 50 -T 20s -m "PING{$nl}" 127.0.0.1:$4
     echo "--- DONE ---"
     sleep 10
     echo ""
 }
 
-gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58001
+gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58111
 
 
 #Processes: 380 total, 2 running, 29 stuck, 349 sleeping, 2317 threads                                                     20:25:21
