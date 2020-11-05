@@ -188,6 +188,10 @@ func (this *Connect) ConnectedHandle()(err error){
 func (this *Connect) readEvent() {
 	this.updateActivityTime()
 
+	if !this.outBuffer.IsEmpty() {
+		return
+	}
+
 	n, err := unix.Read(this.fd, this.buf)
 	if n == 0 || err != nil {
 		if err != unix.EAGAIN {
