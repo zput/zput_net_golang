@@ -2,12 +2,11 @@ package tcpserver
 
 import (
 	"github.com/RussellLuo/timingwheel"
-	"github.com/zput/ringbuffer"
+	"github.com/zput/zput_net_golang/net/accept"
+	"github.com/zput/zput_net_golang/net/connect"
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
-	"github.com/zput/zput_net_golang/net/accept"
-	"github.com/zput/zput_net_golang/net/connect"
 	"golang.org/x/sys/unix"
 	"runtime"
 	"time"
@@ -54,13 +53,8 @@ func New(handleEvent IHandleEvent, opts ...protocol.Option)(*Server, error){
 	tcpServer.tcpAccept.SetNewConnectCallback(tcpServer.newConnected)
 
 	if tcpServer.options.NumLoops <= 0 {
-		if tcpServer.options.NumLoops == 0 {
-			tcpServer.options.NumLoops = 1
-		} else {
-			tcpServer.options.NumLoops = runtime.NumCPU()
-		}
+		tcpServer.options.NumLoops = runtime.NumCPU()
 	}
-	tcpServer.options.NumLoops = ringbuffer.NotMoreThan(tcpServer.options.NumLoops)
 
 	runloops := make([]*event_loop.EventLoop, tcpServer.options.NumLoops)
 	for i := 0; i < tcpServer.options.NumLoops; i++ {
