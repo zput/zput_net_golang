@@ -131,20 +131,24 @@ func (this *Event)HandleEvent(revents protocol.EventType){
 		if this.closeHandle != nil{
 			this.closeHandle()
 		}
+		return
 	}
 	if (revents & protocol.EventErr) != protocol.EventNone{
 		if this.errorHandle != nil{
 			this.errorHandle()
 		}
+		return
 	}
 	if (revents & protocol.EventWrite) != protocol.EventNone{
 		if this.writeHandle != nil{
 			this.writeHandle()
 		}
+		return
 	}
 	if (revents & protocol.EventRead) != protocol.EventNone{
 		if this.readHandle != nil {
 			this.readHandle()
 		}
+		return
 	}
 }
