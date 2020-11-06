@@ -261,6 +261,9 @@ func (this *Connect) read()([]byte, error){
 //}
 
 func (this *Connect) writeEvent() {
+	defer func () {
+		log.Infof("[%d-%d]W:inBuffer[%d], outBuffer[%d]", this.loop.SequenceID, this.event.GetFd(), this.inBuffer.Size(), this.outBuffer.Size())
+	}()
 	this.updateActivityTime()
 
 	first, end := this.outBuffer.PeekAll()
@@ -296,7 +299,6 @@ func (this *Connect) writeEvent() {
 			this.writeCompleteCallback(this)
 		}
 	}
-	log.Infof("[%d-%d]W:inBuffer[%d], outBuffer[%d]", this.loop.SequenceID, this.event.GetFd(), this.inBuffer.Size(), this.outBuffer.Size())
 }
 
 func (this *Connect) write(data []byte) {
@@ -312,6 +314,7 @@ func (this *Connect) write(data []byte) {
 			return
 		}
 		if n < len(data) {
+			log.Infof("[%d-%d]:have send LENGTH[%d]", this.loop.SequenceID, this.event.GetFd(), len(data) - n)
 			_, _ = this.outBuffer.Write(data[n:])
 
 			if this.outBuffer.Size() > 0 {
