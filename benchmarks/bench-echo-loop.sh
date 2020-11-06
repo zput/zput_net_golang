@@ -22,7 +22,7 @@ function gobench {
     if [ "$3" != "" ]; then
         go build -o $2 $3
     fi
-    GOMAXPROCS=1 $2 --port $4 --loops 6 &
+    GOMAXPROCS=1 $2 --port $4 --loops $5 &
 
     sleep 1
     echo "*** 50 connections, 10 seconds, 6 byte packets"
@@ -33,7 +33,12 @@ function gobench {
     echo ""
 }
 
-gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58111
+gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58111 1
+gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58112 2
+gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58113 3
+gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58114 4
+gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58115 5
+gobench "ZPUT-NET-GOLANG"  bin/zput_net_golang-echo-server ../example/echo/echo.go 58116 6
 
 
 #Processes: 380 total, 2 running, 29 stuck, 349 sleeping, 2317 threads                                                     20:25:21
