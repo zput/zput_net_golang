@@ -314,11 +314,12 @@ func (this *Connect) write(data []byte) {
 			return
 		}
 		if n < len(data) {
-			log.Infof("[%d-%d]:have send LENGTH[%d]", this.loop.SequenceID, this.event.GetFd(), len(data) - n)
+			log.Infof("[%d-%d]:waitSend[%d], haveSend[%d], remain[%d]", this.loop.SequenceID, this.event.GetFd(), len(data), n, len(data) - n)
 			_, _ = this.outBuffer.Write(data[n:])
 
-			if this.outBuffer.Size() > 0 {
-				this.event.EnableWriting(true)
+			err := this.event.EnableWriting(true)
+			if err != nil{
+				log.Errorf("EnableWriting error[%v]", err)
 			}
 		}
 	}
