@@ -189,7 +189,7 @@ func (this *Connect) readEvent() {
 	this.updateActivityTime()
 
 	if !this.outBuffer.IsEmpty() {
-		log.Info("[%d-%d]outBuffer is not empty, read event happened", this.loop.SequenceID, this.event.GetFd())
+		log.Infof("[%d-%d]outBuffer is not empty, read event happened; inBuffer[%d], outBuffer[%d]", this.loop.SequenceID, this.event.GetFd(), this.inBuffer.Size(), this.outBuffer.Size())
 		return
 	}
 
