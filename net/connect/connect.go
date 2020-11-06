@@ -189,6 +189,7 @@ func (this *Connect) readEvent() {
 	this.updateActivityTime()
 
 	if !this.outBuffer.IsEmpty() {
+		log.Info("outBuffer is not empty, read event happened")
 		return
 	}
 
