@@ -36,7 +36,7 @@ func (this *Echo) OnClose(c *connect.Connect) {
 }
 
 func main() {
-	log.SetLevel(log.LevelDebug)
+	//log.SetLevel(log.LevelDebug)
 	go func() {
 		if err := http.ListenAndServe(":6060", nil); err != nil {
 			panic(err)
