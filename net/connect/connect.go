@@ -215,7 +215,7 @@ func (this *Connect) readEvent() {
 
 		this.inBuffer.Write(this.temporaryBuf)
 	}
-	log.Infof("inBuffer[%d], outBuffer[%d]", this.inBuffer.Size(), this.outBuffer.Size())
+	log.Infof("[%d]R:inBuffer[%d], outBuffer[%d]", this.loop.SequenceID, this.inBuffer.Size(), this.outBuffer.Size())
 }
 
 func (this *Connect) read()([]byte, error){
@@ -295,7 +295,7 @@ func (this *Connect) writeEvent() {
 			this.writeCompleteCallback(this)
 		}
 	}
-	log.Infof("inBuffer[%d], outBuffer[%d]", this.inBuffer.Size(), this.outBuffer.Size())
+	log.Infof("[%d]W:inBuffer[%d], outBuffer[%d]", this.loop.SequenceID, this.inBuffer.Size(), this.outBuffer.Size())
 }
 
 func (this *Connect) write(data []byte) {
