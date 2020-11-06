@@ -203,6 +203,7 @@ func (this *Connect) readEvent() {
 		return
 	}
 	if n > 0{
+		log.Infof("have receive length[%d]", n)
 		this.temporaryBuf = this.buf[:n] // will change by shiftN; ReadN; resetBuffer
 		for inFrame, _ := this.read(); inFrame != nil; inFrame, _ = this.read() {
 			out := this.messageCallback(this, inFrame)
