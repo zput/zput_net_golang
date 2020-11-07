@@ -317,6 +317,8 @@ func (this *Connect) write(data []byte) {
 		n, err := unix.Write(this.fd, data)
 		if err != nil {
 			if err == unix.EAGAIN {
+				_, _ = this.outBuffer.Write(data)
+				_ = this.event.EnableWriting(true)
 				return
 			}
 			this.closeEvent()
@@ -325,11 +327,7 @@ func (this *Connect) write(data []byte) {
 		if n < len(data) {
 			log.Infof("[%d-%d]:waitSend[%d], haveSend[%d], remain[%d]", this.loop.SequenceID, this.event.GetFd(), len(data), n, len(data) - n)
 			_, _ = this.outBuffer.Write(data[n:])
-
-			err := this.event.EnableWriting(true)
-			if err != nil{
-				log.Errorf("EnableWriting error[%v]", err)
-			}
+			_ = this.event.EnableWriting(true)
 		}
 	}
 }
