@@ -189,6 +189,11 @@ func (this *Connect) readEvent() {
 	this.updateActivityTime()
 
 	if !this.outBuffer.IsEmpty() {
+		// close read event
+		err := this.event.EnableReading(false)
+		if err != nil{
+			log.Errorf("enable reading; error[%v]", err)
+		}
 		return
 	}
 
@@ -286,7 +291,10 @@ func (this *Connect) writeEvent() {
 
 	if this.outBuffer.Size() == 0 {
 		if this.event.IsWriting() == true{
-			this.event.EnableWriting(false)
+			_ = this.event.EnableWriting(false)
+		}
+		if this.event.IsReading() == false{
+			_ = this.event.EnableReading(true)
 		}
 
 		//回调写完成函数
