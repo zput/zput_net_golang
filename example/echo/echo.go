@@ -39,7 +39,7 @@ func main() {
 	//log.SetLevel(log.LevelDebug)
 	go func() {
 		if err := http.ListenAndServe(":6060", nil); err != nil {
-			panic(err)
+			//panic(err)
 		}
 	}()
 
@@ -48,7 +48,7 @@ func main() {
 	var loops int
 
 	flag.IntVar(&port, "port", 58810, "server port")
-	flag.IntVar(&loops, "loops", -1, "num loops")
+	flag.IntVar(&loops, "loops", 1, "num loops")
 	flag.Parse()
 
 	log.Info("server begin")
