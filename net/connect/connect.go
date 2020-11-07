@@ -311,6 +311,8 @@ func (this *Connect) write(data []byte) {
 		n, err := unix.Write(this.fd, data)
 		if err != nil {
 			if err == unix.EAGAIN {
+				_, _ = this.outBuffer.Write(data)
+				_ = this.event.EnableWriting(true)
 				return
 			}
 			this.closeEvent()
@@ -318,10 +320,7 @@ func (this *Connect) write(data []byte) {
 		}
 		if n < len(data) {
 			_, _ = this.outBuffer.Write(data[n:])
-
-			if this.outBuffer.Size() > 0 {
-				this.event.EnableWriting(true)
-			}
+			_ = this.event.EnableWriting(true)
 		}
 	}
 }
