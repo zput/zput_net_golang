@@ -81,6 +81,8 @@ func init() {
 	case "debug":
 		level = LevelDebug
 	}
+
+	stdlog.SetFlags(stdlog.Ldate | stdlog.Lmicroseconds | stdlog.Lshortfile)
 }
 
 // Log makes use of Logger
