@@ -3,7 +3,6 @@
 package multiplex
 
 import (
-	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"golang.org/x/sys/unix"
@@ -44,23 +43,23 @@ func (this *Multiplex) Close() (err error) {
 	return
 }
 
-func (this *Multiplex) AddEvent(ioEvent *event.Event) error {
-	log.Debugf("AddEvent; ioEvent; fd:%v, eventType:%v, oldEventType:%v", ioEvent.GetFd(), ioEvent.GetEvents(), ioEvent.GetOldEvents())
-	kEvents := this.kEvents(protocol.EventNone, ioEvent.GetEvents(), ioEvent.GetFd())
+func (this *Multiplex) AddEvent(fd int, eventState protocol.EventType,  oldEventState protocol.EventType) error {
+	log.Debugf("AddEvent; ioEvent; fd:%v, eventType:%v, oldEventType:%v", fd, eventState, oldEventState)
+	kEvents := this.kEvents(protocol.EventNone, eventState, fd)
 	this.changes = append(this.changes, kEvents...)
 	return nil
 }
 
-func (this *Multiplex) RemoveEvent(ioEvent *event.Event) error {
-	kEvents := this.kEvents(ioEvent.GetOldEvents(), protocol.EventNone, ioEvent.GetFd())
+func (this *Multiplex) RemoveEvent(fd int, oldEventState protocol.EventType) error {
+	kEvents := this.kEvents(oldEventState, protocol.EventNone, fd)
 	this.changes = append(this.changes, kEvents...)
 	//log.Debugf("%+v", this.changes)
 	return nil
 }
 
-func (this *Multiplex) ModifyEvent(ioEvent *event.Event) error {
-	log.Debugf("ModifyEvent; ioEvent; fd:%v, eventType:%v, oldEventType:%v", ioEvent.GetFd(), ioEvent.GetEvents(), ioEvent.GetOldEvents())
-	kEvents := this.kEvents(ioEvent.GetOldEvents(), ioEvent.GetEvents(), ioEvent.GetFd())
+func (this *Multiplex) ModifyEvent(fd int, eventState protocol.EventType,  oldEventState protocol.EventType) error {
+	log.Debugf("ModifyEvent; ioEvent; fd:%v, eventType:%v, oldEventType:%v", fd, eventState, oldEventState)
+	kEvents := this.kEvents(oldEventState, eventState, fd)
 	this.changes = append(this.changes, kEvents...)
 	//log.Debugf("length[%d]; %+v", len(this.changes), this.changes)
 	return nil

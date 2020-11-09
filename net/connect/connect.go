@@ -1,12 +1,12 @@
-package tcpconnect
+package connect
 
 import (
 	"errors"
 	"fmt"
 	"github.com/RussellLuo/timingwheel"
+	"github.com/panjf2000/gnet/pool/bytebuffer"
 	"github.com/zput/ringbuffer"
 	"github.com/zput/ringbuffer/pool"
-	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
@@ -16,10 +16,9 @@ import (
 	"time"
 )
 
-type OnMessageCallback func(*TcpConnect, *ringbuffer.RingBuffer)
-type OnConnectCloseCallback func(*TcpConnect)
-type OnWriteCompletCallback func(*TcpConnect)
-
+type OnMessageCallback func(*Connect, []byte)[]byte
+type OnConnectCloseCallback func(*Connect)
+type OnWriteCompletCallback func(*Connect)
 
 type ConnectState int
 const(
@@ -30,11 +29,17 @@ const(
 )
 
 // Connection TCP 连接
-type TcpConnect struct {
+type Connect struct {
 	loop                       *event_loop.EventLoop
-	event                      *event.Event
+	event                      *event_loop.Event
+	// TODO init
+	buf []byte //
+	temporaryBuf []byte // don't need init
 	outBuffer *ringbuffer.RingBuffer // write buffer
 	inBuffer  *ringbuffer.RingBuffer // read buffer
+	// TODO initial
+	byteBuffer     *bytebuffer.ByteBuffer // bytes buffer for buffering current packet and data in ring-buffer
+
 	messageCallback OnMessageCallback
 	connectCloseCallback OnConnectCloseCallback
 	writeCompleteCallback OnWriteCompletCallback
@@ -46,23 +51,24 @@ type TcpConnect struct {
 	idleTime    time.Duration
 	activeTime  protocol.Int64
 	timingWheel *timingwheel.TimingWheel
-	temporaryBuf []byte
+	codeImp protocol.ICodec
 }
 
 var ErrConnectionClosed = errors.New("connection closed")
 
 // New 创建 Connection
-func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration,) (*TcpConnect, error) {
-	var tcpConnection = TcpConnect{
+func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.TimingWheel, idleTime time.Duration, codeImp protocol.ICodec) (*Connect, error) {
+	var tcpConnection = Connect{
 		loop:loop,
 		fd:fd,
 		peerAddr:sockAddrToString(sa),
+		buf:make([]byte, 0xFFFF),
 		outBuffer:pool.Get(),
 		inBuffer:pool.Get(),
+		codeImp: codeImp,
 		state:Disconnected,
 		idleTime:idleTime,
 		timingWheel:tw,
-		temporaryBuf:make([]byte, 0xFFFF),
 	}
 
 	tcpConnection.outBuffer.RetrieveAll()
@@ -83,8 +89,8 @@ func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.T
 		return nil, err
 	}
 
-	//设置Tcp Accept event.
-	tcpConnection.event = event.New(loop, fd)
+	//设置Tcp Accept event_loop.
+	tcpConnection.event = event_loop.NewEvent(loop, fd)
 	////将这个accept event添加到loop，给多路复用监听。
 	//err = tcpConnection.loop.AddEvent(tcpConnection.event)
 	//if err != nil{
@@ -101,18 +107,18 @@ func New(loop *event_loop.EventLoop, fd int, sa unix.Sockaddr, tw *timingwheel.T
 }
 
 //Close关闭连接
-func (this *TcpConnect) Close() error {
+func (this *Connect) Close() error {
 	if this.state == Disconnected {
 		return ErrConnectionClosed
 	}
 
-	this.loop.AddFunInLoop(func() {
+	this.loop.RunInLoop(func() {
 		this.closeEvent()
 	})
 	return nil
 }
 
-func (this *TcpConnect) closeTimeoutConn() func() {
+func (this *Connect) closeTimeoutConn() func() {
 	return func() {
 		now := time.Now()
 		intervals := now.Sub(time.Unix(this.activeTime.Get(), 0))
@@ -124,7 +130,7 @@ func (this *TcpConnect) closeTimeoutConn() func() {
 	}
 }
 
-func (this *TcpConnect) setNoDelay(enable bool)(err error){
+func (this *Connect) setNoDelay(enable bool)(err error){
 	if err = unix.SetNonblock(this.fd, enable); err != nil {
 		_ = unix.Close(this.fd)
 		log.Error("set nonblock:", err)
@@ -133,22 +139,22 @@ func (this *TcpConnect) setNoDelay(enable bool)(err error){
 	return nil
 }
 
-func (this *TcpConnect) SetMessageCallback(messageCallback OnMessageCallback) {
+func (this *Connect) SetMessageCallback(messageCallback OnMessageCallback) {
 	this.messageCallback = messageCallback
 }
 
-func (this *TcpConnect) SetConnectCloseCallback(connectCloseCallback OnConnectCloseCallback) {
+func (this *Connect) SetConnectCloseCallback(connectCloseCallback OnConnectCloseCallback) {
 	this.connectCloseCallback = connectCloseCallback
 }
 
-func (this *TcpConnect) SetWriteCompleteCallback(writeCompletCallback OnWriteCompletCallback) {
+func (this *Connect) SetWriteCompleteCallback(writeCompletCallback OnWriteCompletCallback) {
 	this.writeCompleteCallback = writeCompletCallback
 }
 
-func (this *TcpConnect) ConnectedHandle()(err error){
+func (this *Connect) ConnectedHandle()(err error){
 
 	//将这个accept event添加到loop，给多路复用监听。
-	err = this.loop.AddEvent(this.event)
+	err = this.event.Register()
 	if err != nil{
 		log.Error("creating tcpConnect failure; AddEvent; error[%v]", err)
 		return err
@@ -179,10 +185,19 @@ func (this *TcpConnect) ConnectedHandle()(err error){
 	return
 }
 
-func (this *TcpConnect) readEvent() {
+func (this *Connect) readEvent() {
 	this.updateActivityTime()
 
-	n, err := unix.Read(this.fd, this.temporaryBuf)
+	if !this.outBuffer.IsEmpty() {
+		// close read event
+		err := this.event.EnableReading(false)
+		if err != nil{
+			log.Errorf("enable reading; error[%v]", err)
+		}
+		return
+	}
+
+	n, err := unix.Read(this.fd, this.buf)
 	if n == 0 || err != nil {
 		if err != unix.EAGAIN {
 			// TODO zxc
@@ -192,12 +207,63 @@ func (this *TcpConnect) readEvent() {
 		return
 	}
 	if n > 0{
-		_, _ = this.inBuffer.Write(this.temporaryBuf[:n])
-		this.messageCallback(this, this.inBuffer)
+		this.temporaryBuf = this.buf[:n] // will change by shiftN; ReadN; resetBuffer
+		for inFrame, _ := this.read(); inFrame != nil; inFrame, _ = this.read() {
+			out := this.messageCallback(this, inFrame)
+			if out != nil {
+				outFrame, _ := this.codeImp.Encode(this, out)
+				if len(outFrame)>0{
+					this.write(outFrame)
+				}
+			}
+		}
+
+		this.inBuffer.Write(this.temporaryBuf)
 	}
 }
 
-func (this *TcpConnect) writeEvent() {
+func (this *Connect) read()([]byte, error){
+	result, err := this.codeImp.Decode(this)
+	if err != nil{
+		log.Errorf("decodeAllDataHaveAccepted; error[%v]", err)
+		return nil, err
+	}
+
+	return result, nil
+}
+
+
+//func (this *Connect) read(fromRemoteData []byte)[]byte{
+//	if this.inBuffer.IsEmpty() == false{
+//		var tempSlice = make([]byte, this.inBuffer.Size()+len(fromRemoteData))
+//		// TODO
+//		// var xxxTest []byte  xxxTest is nil?
+//		// type slice {
+//		//}
+//		first, end := this.inBuffer.PeekAll()
+//		if len(first) == 0{
+//			copy(tempSlice, end)
+//		}else{
+//			copy(tempSlice, first)
+//			copy(tempSlice[len(first):], end)
+//		}
+//		copy(tempSlice[this.inBuffer.Size():], fromRemoteData)
+//		fromRemoteData = tempSlice
+//	}
+//	return fromRemoteData
+//}
+//
+//func (this *Connect) decodeAllDataHaveAccepted(fromRemoteData []byte)([]byte, error){
+//	result, err := this.codeImp.DeCode(this.read(fromRemoteData))
+//	if err != nil{
+//		log.Errorf("decodeAllDataHaveAccepted; error[%v]", err)
+//		return nil, err
+//	}
+//
+//	return result, nil
+//}
+
+func (this *Connect) writeEvent() {
 	this.updateActivityTime()
 
 	first, end := this.outBuffer.PeekAll()
@@ -225,7 +291,10 @@ func (this *TcpConnect) writeEvent() {
 
 	if this.outBuffer.Size() == 0 {
 		if this.event.IsWriting() == true{
-			this.event.EnableWriting(false)
+			_ = this.event.EnableWriting(false)
+		}
+		if this.event.IsReading() == false{
+			_ = this.event.EnableReading(true)
 		}
 
 		//回调写完成函数
@@ -235,13 +304,15 @@ func (this *TcpConnect) writeEvent() {
 	}
 }
 
-func (this *TcpConnect) Write(data []byte) {
+func (this *Connect) write(data []byte) {
 	if !this.outBuffer.IsEmpty(){
 		_, _ = this.outBuffer.Write(data)
 	} else {
 		n, err := unix.Write(this.fd, data)
 		if err != nil {
 			if err == unix.EAGAIN {
+				_, _ = this.outBuffer.Write(data)
+				_ = this.event.EnableWriting(true)
 				return
 			}
 			this.closeEvent()
@@ -249,28 +320,27 @@ func (this *TcpConnect) Write(data []byte) {
 		}
 		if n < len(data) {
 			_, _ = this.outBuffer.Write(data[n:])
-
-			if this.outBuffer.Size() > 0 {
-				this.event.EnableWriting(true)
-			}
+			_ = this.event.EnableWriting(true)
 		}
 	}
 }
 
-func (this *TcpConnect) errEvent() {
+func (this *Connect) errEvent() {
 	this.closeEvent()
 }
 
 // TODO 为什么C++需要加share_prt
-func (this *TcpConnect) closeEvent() {
+func (this *Connect) closeEvent() {
 	if this.state != Disconnected {
+		log.Debug("ready to close connection event")
 		//设置状态
 		this.state = Disconnected
 		//在event中取消掉loop注册
 		//删除fd-event-loop
 		this.event.DisableAll()
-		this.event.RemoveFromLoop()
+		this.event.UnRegister()
 
+		log.Debug("ready to close connection event; callback upper")
 		// 这个是上层的责任，应该由上层来删除。这个TcpConnect与loop，fd的联系。
 		if this.connectCloseCallback != nil {
 			this.connectCloseCallback(this)
@@ -288,7 +358,7 @@ func (this *TcpConnect) closeEvent() {
 }
 
 // ShutdownWrite 关闭可写端，等待读取完接收缓冲区所有数据
-func (this *TcpConnect) ShutdownWrite() error {
+func (this *Connect) ShutdownWrite() error {
 	if this.state == Connected{
 		this.state = Disconnecting
 		return unix.Shutdown(this.fd, unix.SHUT_WR)
@@ -297,18 +367,18 @@ func (this *TcpConnect) ShutdownWrite() error {
 }
 
 // PeerAddr 获取客户端地址信息
-func (this *TcpConnect) PeerAddr() string {
+func (this *Connect) PeerAddr() string {
 	return this.peerAddr
 }
 
 // Send 用来在非 loop 协程发送
-func (this *TcpConnect) WriteInSelfLoop(buffer []byte) error {
+func (this *Connect) WriteInSelfLoop(buffer []byte) error {
 	if this.state != Connected {
 		return ErrConnectionClosed
 	}
 
-	this.loop.AddFunInLoop(func() {
-		this.Write(buffer)
+	this.loop.RunInLoop(func() {
+		this.write(buffer)
 	})
 	return nil
 }
@@ -324,8 +394,93 @@ func sockAddrToString(sa unix.Sockaddr) string {
 	}
 }
 
-func (this *TcpConnect)updateActivityTime(){
+func (this *Connect)updateActivityTime(){
 	if this.idleTime > 0 {
 		_ = this.activeTime.Swap(time.Now().Unix())
 	}
+}
+
+//////////////////////////public API ////////////////////////////////
+
+func (c *Connect) Read() []byte {
+	if c.inBuffer.IsEmpty() {
+		return c.temporaryBuf
+	}
+
+	c.byteBuffer = bytebuffer.Get()
+
+	first, end := c.inBuffer.PeekAll()
+	if len(first) == 0{
+		_, _ = c.byteBuffer.Write(end)
+	}else{
+		_, _ = c.byteBuffer.Write(first)
+		_, _ = c.byteBuffer.Write(end)
+	}
+	_, _ = c.byteBuffer.Write(c.temporaryBuf)
+	return c.byteBuffer.Bytes()
+}
+
+func (c *Connect) ResetBuffer() {
+	c.temporaryBuf = c.temporaryBuf[:0]
+	c.inBuffer.Reset()
+	bytebuffer.Put(c.byteBuffer)
+	c.byteBuffer = nil
+}
+
+func (c *Connect) ReadN(n int) (size int, buf []byte) {
+	inBufferLen := c.inBuffer.Size()
+	tempBufferLen := len(c.temporaryBuf)
+	if totalLen := inBufferLen + tempBufferLen; totalLen < n || n <= 0 {
+		n = totalLen
+	}
+	size = n
+	if c.inBuffer.IsEmpty() {
+		buf = c.temporaryBuf[:n]
+		return
+	}
+	head, tail := c.inBuffer.Peek(n)
+	c.byteBuffer = bytebuffer.Get()
+	_, _ = c.byteBuffer.Write(head)
+	_, _ = c.byteBuffer.Write(tail)
+	if inBufferLen >= n {
+		buf = c.byteBuffer.Bytes()
+		return
+	}
+
+	restSize := n - inBufferLen
+	_, _ = c.byteBuffer.Write(c.temporaryBuf[:restSize])
+	buf = c.byteBuffer.Bytes()
+	return
+}
+
+func (c *Connect) ShiftN(n int) (size int) {
+	inBufferLen := c.inBuffer.Size()
+	tempBufferLen := len(c.temporaryBuf)
+	if inBufferLen+tempBufferLen < n || n <= 0 {
+		c.ResetBuffer()
+		size = inBufferLen + tempBufferLen
+		return
+	}
+	size = n
+	if c.inBuffer.IsEmpty() {
+		c.temporaryBuf = c.temporaryBuf[n:]
+		return
+	}
+
+	bytebuffer.Put(c.byteBuffer)
+	c.byteBuffer = nil
+
+	if inBufferLen >= n {
+		c.inBuffer.Retrieve(n)
+		return
+	}
+	c.inBuffer.Reset()
+
+	restSize := n - inBufferLen
+	c.temporaryBuf = c.temporaryBuf[restSize:]
+	return
+}
+
+func (c *Connect) BufferLength() int {
+	return c.inBuffer.Size() + len(c.temporaryBuf)
 }

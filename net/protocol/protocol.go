@@ -40,3 +40,19 @@ type AddFunToLoopWaitingRun func()
 var ErrClosed = errors.New("poller instance is not running")
 
 const WaitEventsNumber = 1024
+
+type ICode interface {
+	Encode([]byte)[]byte
+	DeCode([]byte)([]byte, error)
+}
+
+type DefaultCode struct{
+}
+
+func (this *DefaultCode) Encode(data []byte)[]byte{
+	return data
+}
+
+func (this *DefaultCode) DeCode(data []byte)([]byte, error){
+	return data, nil
+}

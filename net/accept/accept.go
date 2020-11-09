@@ -1,9 +1,8 @@
-package tcpaccept
+package accept
 
 import (
 	"errors"
 	"github.com/zput/zput_net_golang/net/log"
-	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/event_loop"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"net"
@@ -14,16 +13,16 @@ import (
 )
 
 // Listener 监听TCP连接
-type TcpAccept struct {
+type Accept struct {
 	listener                   net.Listener
 	aCopyOfTheUnderlyingOsFile *os.File
 	loop                       *event_loop.EventLoop
 	newConnectCallback         protocol.OnNewConnectCallback
-	event                      *event.Event
+	event                      *event_loop.Event
 }
 
 // New 创建Listener
-func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop) (*TcpAccept, error) {
+func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop) (*Accept, error) {
 	var (
 		listener net.Listener
 		err error
@@ -36,7 +35,7 @@ func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop)
 	if err != nil {
 		return nil, err
 	}
-	var tcpAccept = TcpAccept{
+	var tcpAccept = Accept{
 		listener: listener,
 		loop:     loop,
 	}
@@ -47,10 +46,10 @@ func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop)
 		return nil, err
 	}
 	log.Debugf("created listen fd[%d]; in tcp accept", tcpAccept.Fd())
-	//新建Tcp Accept event.
-	tcpAccept.event = event.New(loop, tcpAccept.Fd())
+	//新建Tcp Accept event_loop.
+	tcpAccept.event = event_loop.NewEvent(loop, tcpAccept.Fd())
 	//将这个accept event添加到loop，给多路复用监听。
-	err = tcpAccept.loop.AddEvent(tcpAccept.event)
+	err = tcpAccept.event.Register()
 	if err != nil{
 		log.Error("creating tcpAccept failure; AddEvent; error[%v]", err)
 		return nil, err
@@ -61,22 +60,22 @@ func New(option protocol.NetWorkAndAddressAndOption, loop *event_loop.EventLoop)
 	return &tcpAccept, nil
 }
 
-func (this *TcpAccept)Listen()error{
+func (this *Accept)Listen()error{
 	log.Debugf("enable reading; in tcp accept activity; FD(%d)", this.event.GetFd())
 	return this.event.EnableReading(true)
 }
 
-// Close TcpAccept
-func (this *TcpAccept) Close()error{
-	this.loop.AddFunInLoop(func() {
+// Close Accept
+func (this *Accept) Close()error{
+	this.loop.RunInLoop(func() {
 		var err error
 		err = this.event.DisableAll()
 		if err != nil{
-			log.Errorf("close event.DisableAll; error[%v]", err)
+			log.Errorf("close event_loop.DisableAll; error[%v]", err)
 		}
-		err = this.event.RemoveFromLoop()
+		err = this.event.UnRegister()
 		if err != nil{
-			log.Errorf("close event.RemoveFromLoop; error[%v]", err)
+			log.Errorf("close event_loop.RemoveFromLoop; error[%v]", err)
 		}
 		if err := this.listener.Close(); err != nil {
 			log.Errorf("[Listener] close; error[%v] ", err)
@@ -85,7 +84,7 @@ func (this *TcpAccept) Close()error{
 	return nil
 }
 
-func (this *TcpAccept) setFd() error {
+func (this *Accept) setFd() error {
 	tcpListener, ok := this.listener.(*net.TCPListener)
 	if !ok {
 		return errors.New("could not get file descriptor")
@@ -98,11 +97,11 @@ func (this *TcpAccept) setFd() error {
 	return nil
 }
 
-func (this *TcpAccept) SetNewConnectCallback(newConnectCallback protocol.OnNewConnectCallback) {
+func (this *Accept) SetNewConnectCallback(newConnectCallback protocol.OnNewConnectCallback) {
 	this.newConnectCallback = newConnectCallback
 }
 
-func (this *TcpAccept) SetNonblock() error {
+func (this *Accept) SetNonblock() error {
 	var err error
 	//设置非阻塞
 	if err = unix.SetNonblock(int(this.aCopyOfTheUnderlyingOsFile.Fd()), true); err != nil {
@@ -112,7 +111,7 @@ func (this *TcpAccept) SetNonblock() error {
 }
 
 //AcceptHandle供event loop回调处理
-func (this *TcpAccept) AcceptHandle() {
+func (this *Accept) AcceptHandle() {
 	nfd, sa, err := unix.Accept(this.Fd())
 	if err != nil {
 		if err != unix.EAGAIN {
@@ -124,7 +123,7 @@ func (this *TcpAccept) AcceptHandle() {
 	this.newConnectCallback(nfd, sa)
 }
 
-// Fd TcpAccept fd
-func (this *TcpAccept) Fd() int {
+// Fd Accept fd
+func (this *Accept) Fd() int {
 	return int(this.aCopyOfTheUnderlyingOsFile.Fd())
 }

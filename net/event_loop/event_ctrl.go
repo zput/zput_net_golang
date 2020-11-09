@@ -1,8 +1,7 @@
-package event_ctrl
+package event_loop
 
 import (
 	"github.com/zput/zput_net_golang/net/log"
-	"github.com/zput/zput_net_golang/net/event"
 	"github.com/zput/zput_net_golang/net/protocol"
 	"github.com/zput/zput_net_golang/net/multiplex"
 )
@@ -11,11 +10,11 @@ type EventCtrl struct{
 	/*
 	   todo: 这个eventPoll 需要进行加锁？ 还有其他的goroutine对它进行了操作？
 	*/
-	eventPool map[int]*event.Event
+	eventPool map[int]*Event
 	multi *multiplex.Multiplex
 }
 
-func New()(*EventCtrl, error){
+func NewEventCtrl()(*EventCtrl, error){
 	var eventCtrl EventCtrl
 	var err error
 	eventCtrl.multi, err = multiplex.New()
@@ -23,7 +22,7 @@ func New()(*EventCtrl, error){
 		log.Errorf("create multiplex error[%v]; in eventCtrl", err)
 		return nil, err
 	}
-	eventCtrl.eventPool = make(map[int]*event.Event)
+	eventCtrl.eventPool = make(map[int]*Event)
 	return &eventCtrl, nil
 }
 
@@ -31,24 +30,24 @@ func (this *EventCtrl)Stop()error{
 	return this.multi.Close()
 }
 
-func (this *EventCtrl)AddEvent(event *event.Event)error{
-	this.eventPool[event.GetFd()]=event
-	return this.multi.AddEvent(event)
+func (this *EventCtrl)addEvent(eventPtr *Event)error{
+	this.eventPool[eventPtr.GetFd()]=eventPtr
+	return this.multi.AddEvent(eventPtr.GetFd(), eventPtr.GetEvents(), eventPtr.GetOldEvents())
 }
 
-func (this *EventCtrl)RemoveEvent(event *event.Event)error{
-	_, ok := this.eventPool[event.GetFd()]
+func (this *EventCtrl)removeEvent(eventPtr *Event)error{
+	_, ok := this.eventPool[eventPtr.GetFd()]
 	if ok {
-		delete(this.eventPool, event.GetFd())
+		delete(this.eventPool, eventPtr.GetFd())
 	}
-	return this.multi.RemoveEvent(event)
+	return this.multi.RemoveEvent(eventPtr.GetFd(), eventPtr.GetOldEvents())
 }
 
-func (this *EventCtrl)ModifyEvent(event *event.Event)error{
-	return this.multi.ModifyEvent(event)
+func (this *EventCtrl)modifyEvent(eventPtr *Event)error{
+	return this.multi.ModifyEvent(eventPtr.GetFd(), eventPtr.GetEvents(), eventPtr.GetOldEvents())
 }
 
-func (this *EventCtrl)WaitAndRunHandle(PollTimeMs int){
+func (this *EventCtrl)waitAndRunHandle(PollTimeMs int){
 	this.multi.WaitEvent(this.handlerEventWrap, PollTimeMs)
 }
 
@@ -68,6 +67,6 @@ func (this *EventCtrl) handlerEventWrap(fd int, eventType protocol.EventType) {
 	//l.eventHandling.Set(false)
 }
 
-func (this *EventCtrl)Wake()error{
+func (this *EventCtrl)wake()error{
 	return this.multi.Wake()
 }

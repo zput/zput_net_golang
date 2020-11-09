@@ -2,11 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/zput/ringbuffer"
+	"github.com/zput/zput_net_golang/net/connect"
 	"github.com/zput/zput_net_golang/net/log"
 	"github.com/zput/zput_net_golang/net/protocol"
-	"github.com/zput/zput_net_golang/net/tcpconnect"
-	"github.com/zput/zput_net_golang/net/tcpserver"
+	"github.com/zput/zput_net_golang/net/server"
 	"net/http"
 	_ "net/http/pprof"
 	"strconv"
@@ -23,26 +22,24 @@ func (this *Echo) GetConnectTimes() int64 {
 	return this.connectTimes
 }
 
-func (this *Echo) ConnectCallback(c *tcpconnect.TcpConnect) {
+func (this *Echo) ConnectCallback(c *connect.Connect) {
 	atomic.AddInt64(&this.connectTimes, 1)
 	this.HandleEventImpl.ConnectCallback(c)
 }
-func (this *Echo) MessageCallback(c *tcpconnect.TcpConnect, buffer *ringbuffer.RingBuffer) {
-	first, end := buffer.PeekAll()
-	buffer.RetrieveAll()
-	out := append(first, end...)
-	c.Write(out)
+func (this *Echo) MessageCallback(c *connect.Connect, buffer []byte)[]byte {
+	return buffer
 }
 
-func (this *Echo) OnClose(c *tcpconnect.TcpConnect) {
+func (this *Echo) OnClose(c *connect.Connect) {
 	atomic.AddInt64(&this.connectTimes, -1)
 	this.HandleEventImpl.ConnectCloseCallback(c)
 }
 
 func main() {
+	//log.SetLevel(log.LevelDebug)
 	go func() {
 		if err := http.ListenAndServe(":6060", nil); err != nil {
-			panic(err)
+			//panic(err)
 		}
 	}()
 
@@ -51,7 +48,7 @@ func main() {
 	var loops int
 
 	flag.IntVar(&port, "port", 58810, "server port")
-	flag.IntVar(&loops, "loops", -1, "num loops")
+	flag.IntVar(&loops, "loops", 1, "num loops")
 	flag.Parse()
 
 	log.Info("server begin")

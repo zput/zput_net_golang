@@ -8,7 +8,7 @@ package tcpserver
 //
 //import (
 //	"github.com/zput/zput_net_golang/net/event_loop"
-//	"github.com/zput/zput_net_golang/net/tcpconnect"
+//	"github.com/zput/zput_net_golang/net/connect"
 //	"time"
 //
 //	"github.com/smartystreets-prototypes/go-disruptor"
@@ -26,14 +26,14 @@ package tcpserver
 //
 //type mail struct {
 //	fd   int
-//	conn *tcpconnect.TcpConnect
+//	conn *tcpconnect.Connect
 //}
 //
 //type eventConsumer struct {
 //	numLoops       int
 //	numLoopsMask   int
 //	loop           *event_loop.EventLoop
-//	connRingBuffer *[connRingBufferSize]*tcpconnect.TcpConnect
+//	connRingBuffer *[connRingBufferSize]*tcpconnect.Connect
 //}
 //
 //func (ec *eventConsumer) Consume(lower, upper int64) {
@@ -57,12 +57,12 @@ package tcpserver
 //	}
 //}
 //
-//func activateMainReactor(svr *TcpServer) {
+//func activateMainReactor(svr *Server) {
 //	defer func() {
 //		time.Sleep(disruptorCleanup)
 //	}()
 //
-//	var connRingBuffer = &[connRingBufferSize]*tcpconnect.TcpConnect{}
+//	var connRingBuffer = &[connRingBufferSize]*tcpconnect.Connect{}
 //
 //	eventConsumers := make([]disruptor.Consumer, 0, svr.options.NumLoops)
 //	for _, loop := range svr.subLoops {

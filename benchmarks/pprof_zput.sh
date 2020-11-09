@@ -26,11 +26,11 @@ function gobench {
     sleep 10
     echo "*** 50 connections, 10 seconds, 6 byte packets"
     nl=$'\r\n'
-    tcpkali --workers 1 -c 50 -T 10s -m "PING{$nl}" 127.0.0.1:$4
+    tcpkali --workers 1 -c 50 -T 20s -m "PING{$nl}" 127.0.0.1:$4
     echo "--- DONE ---"
     echo ""
 }
 
-gobench "GEV"  bin/pprof-test-server ../example/echo/echo.go 5000
+gobench "GEV"  bin/pprof-test-server ../example/echo/echo.go 50001
 
-sleep 120
+#sleep 120
