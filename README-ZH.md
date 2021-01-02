@@ -12,11 +12,11 @@ zput_net_golang基于事件驱动(Reactor模式)的高性能,非阻塞和轻量�
     
 ## 特点
 
-- non-blocking I/O.
-- Multi-Goroutine support, each Goroutine run an event-driven event-loop.
-- Read-write buffers use scalable Ring Buffer.
-- Support for port reuse (SO_REUSEPORT).
-- Support for Event Timing Tasks.
+- 非阻塞I / O。
+- 多Goroutine支持，每个Goroutine运行一个事件驱动的事件循环。
+- 读写缓冲区使用可伸缩的环形缓冲区。
+- 支持端口重用（SO_REUSEPORT）。
+- 支持事件定时任务。
 
 ## 性能测试
 
